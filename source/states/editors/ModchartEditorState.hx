@@ -7,6 +7,7 @@ import flixel.util.FlxColor;
 import flixel.math.FlxPoint;
 import flixel.math.FlxMath;
 import flixel.ui.FlxButton;
+import flixel.addons.ui.FlxUIButton; // <-- ¡La librería mágica que permite usar .resize()!
 import flixel.group.FlxGroup.FlxTypedGroup;
 import flixel.group.FlxGroup;
 import backend.Paths;
@@ -28,7 +29,7 @@ class ModchartEditorState extends MusicBeatState
 
     // --- STRUMS Y PREVIEW ---
     var testStrums:FlxTypedGroup<FlxSprite>;
-    var selectedStrum:Int = 4; 
+    var selectedStrum:Int = 4;
     var timeElapsed:Float = 0; // Para previsualizar efectos matemáticos en tiempo real
 
     // --- VARIABLES POR FLECHA (Estáticas) ---
@@ -42,7 +43,7 @@ class ModchartEditorState extends MusicBeatState
     // --- VARIABLES GLOBALES DE EFECTOS (Movimiento Continuo) ---
     var globalDrunk:Float = 0; // Movimiento en onda horizontal (X)
     var globalTipsy:Float = 0; // Movimiento en onda vertical (Y)
-    var globalSpin:Float = 0;  // Rotación constante
+    var globalSpin:Float = 0; // Rotación constante
 
     // --- SISTEMA DE PÁGINAS PARA MÓVIL ---
     var currentPage:Int = 0;
@@ -52,7 +53,7 @@ class ModchartEditorState extends MusicBeatState
     override function create()
     {
         #if mobile
-        FlxG.mouse.visible = true; 
+        FlxG.mouse.visible = true;
         #end
 
         var bg:FlxSprite = new FlxSprite().loadGraphic(Paths.image('menuDesat'));
@@ -68,7 +69,6 @@ class ModchartEditorState extends MusicBeatState
         for (i in 0...8) {
             var isPlayer:Bool = (i >= 4);
             var targetX:Float = isPlayer ? 732 + ((i - 4) * 112) : 92 + (i * 112);
-            
             var strum:FlxSprite = new FlxSprite(targetX, 50);
             strum.frames = Paths.getSparrowAtlas('NOTE_assets');
             strum.animation.addByPrefix('static', 'arrow' + arrowDirs[i % 4].toUpperCase());
@@ -111,7 +111,7 @@ class ModchartEditorState extends MusicBeatState
         // PÁGINA 1: Transformaciones Avanzadas (Escalas)
         addTweakToPage(1, "Escala Ancho (X)", 180, function(v) { strumScaleX[selectedStrum] = Math.max(0.1, strumScaleX[selectedStrum] + v); }, 0.1);
         addTweakToPage(1, "Escala Alto (Y)", 260, function(v) { strumScaleY[selectedStrum] = Math.max(0.1, strumScaleY[selectedStrum] + v); }, 0.1);
-        
+
         // PÁGINA 2: EFECTOS DE MOVIMIENTO (Matemáticos Globales)
         addTweakToPage(2, "Efecto 'Drunk' (Onda X)", 180, function(v) { globalDrunk += v; }, 10);
         addTweakToPage(2, "Efecto 'Tipsy' (Onda Y)", 260, function(v) { globalTipsy += v; }, 10);
@@ -122,18 +122,18 @@ class ModchartEditorState extends MusicBeatState
         pageText.setFormat(Paths.font("vcr.ttf"), 16, FlxColor.WHITE, CENTER);
         add(pageText);
 
-        var btnPrev = new FlxButton(uiBox.x + 20, uiBox.y + 135, "< Atrás", function() { changePage(-1); });
-        var btnNext = new FlxButton(uiBox.x + 280, uiBox.y + 135, "Sig >", function() { changePage(1); });
+        var btnPrev = new FlxUIButton(uiBox.x + 20, uiBox.y + 135, "< Atrás", function() { changePage(-1); });
+        var btnNext = new FlxUIButton(uiBox.x + 280, uiBox.y + 135, "Sig >", function() { changePage(1); });
         btnPrev.resize(80, 30); btnNext.resize(80, 30);
         add(btnPrev); add(btnNext);
 
         // Botones Inferiores (Exportar y Reset)
-        var exportBtn = new FlxButton(uiBox.x + 20, uiBox.y + 500, "GENERAR LUA", function() { exportToUltimateLua(); });
+        var exportBtn = new FlxUIButton(uiBox.x + 20, uiBox.y + 500, "GENERAR LUA", function() { exportToUltimateLua(); });
         exportBtn.resize(170, 35);
         exportBtn.color = FlxColor.LIME;
         add(exportBtn);
 
-        var resetBtn = new FlxButton(uiBox.x + 210, uiBox.y + 500, "RESET TODO", function() { resetAll(); });
+        var resetBtn = new FlxUIButton(uiBox.x + 210, uiBox.y + 500, "RESET TODO", function() { resetAll(); });
         resetBtn.resize(170, 35);
         resetBtn.color = FlxColor.RED;
         add(resetBtn);
@@ -151,13 +151,13 @@ class ModchartEditorState extends MusicBeatState
     // --- CONSTRUCTOR DE LA INTERFAZ ---
     function addTweakToPage(pageIndex:Int, label:String, yPos:Float, changeFunc:Float->Void, step:Float) {
         var grp = uiElements.members[pageIndex];
-        
+
         var txt = new FlxText(uiBox.x + 20, uiBox.y + yPos, 360, label, 14);
         txt.setFormat(Paths.font("vcr.ttf"), 14, FlxColor.WHITE);
         grp.add(txt);
 
-        var btnMinus = new FlxButton(uiBox.x + 20, uiBox.y + yPos + 22, "- Menos", function() { changeFunc(-step); updateUI(); });
-        var btnPlus = new FlxButton(uiBox.x + 220, uiBox.y + yPos + 22, "+ Más", function() { changeFunc(step); updateUI(); });
+        var btnMinus = new FlxUIButton(uiBox.x + 20, uiBox.y + yPos + 22, "- Menos", function() { changeFunc(-step); updateUI(); });
+        var btnPlus = new FlxUIButton(uiBox.x + 220, uiBox.y + yPos + 22, "+ Más", function() { changeFunc(step); updateUI(); });
         
         btnMinus.resize(160, 35);
         btnPlus.resize(160, 35);
@@ -167,7 +167,7 @@ class ModchartEditorState extends MusicBeatState
 
     function changePage(change:Int) {
         currentPage = FlxMath.wrap(currentPage + change, 0, maxPages);
-        
+
         for (i in 0...uiElements.members.length) {
             uiElements.members[i].visible = (i == currentPage);
             uiElements.members[i].active = (i == currentPage);
@@ -177,7 +177,9 @@ class ModchartEditorState extends MusicBeatState
     }
 
     function updateUI() {
-        var strName:String = (selectedStrum >= 4) ? "BF [" + (selectedStrum - 4) + "]" : "DAD [" + selectedStrum + "]";
+        var strName:String = (selectedStrum >= 4) ?
+            "BF [" + (selectedStrum - 4) + "]" : "DAD [" + selectedStrum + "]";
+
         titleText.text = "ULTIMATE MODCHART EDITOR\nSelección: " + strName;
 
         if (currentPage == 0) {
@@ -191,7 +193,8 @@ class ModchartEditorState extends MusicBeatState
 
     function resetAll() {
         for(i in 0...8) {
-            strumX[i] = 0; strumY[i] = 0;
+            strumX[i] = 0;
+            strumY[i] = 0;
             strumAlpha[i] = 1; strumAngle[i] = 0;
             strumScaleX[i] = 1; strumScaleY[i] = 1;
         }
@@ -203,6 +206,7 @@ class ModchartEditorState extends MusicBeatState
     override function update(elapsed:Float)
     {
         super.update(elapsed);
+
         timeElapsed += elapsed; // Reloj interno para los efectos
 
         // Detección táctil directa de flechas
@@ -247,11 +251,12 @@ class ModchartEditorState extends MusicBeatState
     // --- MOTOR DE GENERACIÓN LUA AVANZADO ---
     function exportToUltimateLua() {
         var luaContent:String = "-- Ultimate Modchart Generated by Psych Engine Mobile Editor\n";
-        
+
         // 1. Valores estáticos en onCreatePost
         luaContent += "\nfunction onCreatePost()\n";
         for (i in 0...8) {
-            var group:String = (i >= 4) ? "playerStrums" : "opponentStrums";
+            var group:String = (i >= 4) ?
+                "playerStrums" : "opponentStrums";
             var id:Int = (i >= 4) ? (i - 4) : i;
 
             if (strumAlpha[i] != 1) luaContent += "    setPropertyFromGroup('" + group + "', " + id + ", 'alpha', " + strumAlpha[i] + ")\n";
@@ -266,8 +271,10 @@ class ModchartEditorState extends MusicBeatState
         luaContent += "    local songPos = getSongPosition() / 1000\n\n";
 
         for (i in 0...8) {
-            var group:String = (i >= 4) ? "playerStrums" : "opponentStrums";
+            var group:String = (i >= 4) ?
+                "playerStrums" : "opponentStrums";
             var id:Int = (i >= 4) ? (i - 4) : i;
+
             var defaultXStr:String = "default" + (i >= 4 ? "Player" : "Opponent") + "StrumX" + id;
             var defaultYStr:String = "default" + (i >= 4 ? "Player" : "Opponent") + "StrumY" + id;
 
@@ -284,6 +291,7 @@ class ModchartEditorState extends MusicBeatState
             // Ensamblar la rotación
             var eqAngle:String = "" + strumAngle[i];
             if (globalSpin != 0) eqAngle += " + (songPos * 100 * " + globalSpin + ")";
+
             if (strumAngle[i] != 0 || globalSpin != 0) {
                 luaContent += "    setPropertyFromGroup('" + group + "', " + id + ", 'angle', " + eqAngle + ")\n";
             }
@@ -304,3 +312,4 @@ class ModchartEditorState extends MusicBeatState
         #end
     }
 }
+
