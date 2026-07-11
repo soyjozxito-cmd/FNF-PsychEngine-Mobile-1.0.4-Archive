@@ -8,14 +8,12 @@ import flixel.math.FlxMath;
 import flixel.ui.FlxButton;
 import flixel.group.FlxGroup.FlxTypedGroup;
 import flixel.addons.ui.FlxUIInputText;
+
+// OJO: Si tu port de Android te tira error de "Type not found" en estas 3 líneas, 
+// bórrales el "backend." y déjalos solo como "import Paths;" etc. Depende de tu base.
 import backend.Paths;
 import backend.Mods;
 import backend.ClientPrefs;
-
-#if sys
-import sys.io.File;
-import sys.FileSystem;
-#end
 
 typedef ModchartAction = {
     var x:Float;
@@ -300,16 +298,26 @@ class ModchartEditorState extends MusicBeatState
         try {
             var rootPath:String = "";
             #if android
-            rootPath = lime.system.System.userDirectory;
+            rootPath = lime.system.System.applicationStorageDirectory;
             #end
 
-            var folderPath:String = rootPath + "mods/" + Mods.currentModDirectory + "/scripts/";
-            if (!FileSystem.exists(folderPath)) FileSystem.createDirectory(folderPath);
+            var currentModDir:String = "scripts/";
+            if (Mods.currentModDirectory != null && Mods.currentModDirectory.length > 0) {
+                currentModDir = Mods.currentModDirectory + "/scripts/";
+            }
+
+            var finalPath:String = rootPath + "mods/" + currentModDir;
+
+            // LLAMADA ABSOLUTA AL SISTEMA (Evita el "Unknown identifier")
+            if (!sys.FileSystem.exists(finalPath)) {
+                sys.FileSystem.createDirectory(finalPath);
+            }
             
-            File.saveContent(folderPath + "modchart_exportado.lua", luaCode);
+            sys.io.File.saveContent(finalPath + "modchart_exportado.lua", luaCode);
             FlxG.sound.play(Paths.sound('confirmMenu'));
+            
         } catch(e:Dynamic) {
-            trace("ERROR GUARDANDO EN ANDROID: " + e);
+            trace("ERROR AL GUARDAR: " + e);
         }
         #end
     }
