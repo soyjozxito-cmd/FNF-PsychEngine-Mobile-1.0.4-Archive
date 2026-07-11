@@ -7,7 +7,6 @@ import flixel.util.FlxColor;
 import flixel.math.FlxMath;
 import flixel.ui.FlxButton;
 import flixel.group.FlxGroup.FlxTypedGroup;
-import flixel.addons.text.FlxInputText;
 
 import backend.Paths;
 import backend.Mods;
@@ -42,8 +41,9 @@ class ModchartEditorState extends MusicBeatState
     var dragOffsetY:Float = 0;
 
     var valoresUI:FlxTypedGroup<FlxSprite>;
-    var inputX:FlxInputText;
-    var inputY:FlxInputText;
+    
+    var textX:FlxText;
+    var textY:FlxText;
 
     override function create()
     {
@@ -124,36 +124,19 @@ class ModchartEditorState extends MusicBeatState
         resetBtn.label.color = FlxColor.WHITE;
 
         var labelX = new FlxText(uiBox.x + 20, uiBox.y + 130, 0, "Posición X:", 16);
-        inputX = new FlxInputText(uiBox.x + 20, uiBox.y + 155, 120, "0", 16);
+        textX = new FlxText(uiBox.x + 20, uiBox.y + 155, 120, "0", 16);
         
         var labelY = new FlxText(uiBox.x + 160, uiBox.y + 130, 0, "Posición Y:", 16);
-        inputY = new FlxInputText(uiBox.x + 160, uiBox.y + 155, 120, "0", 16);
-
-        var applyBtn = new FlxButton(uiBox.x + 300, uiBox.y + 150, "APLICAR", function() {
-            var valX:Float = Std.parseFloat(inputX.text);
-            var valY:Float = Std.parseFloat(inputY.text);
-            if (Math.isNaN(valX)) valX = 0;
-            if (Math.isNaN(valY)) valY = 0;
-
-            for (id in selectedStrums) {
-                var act = strumActions[id][currentActionIndex];
-                act.x = valX;
-                act.y = valY;
-            }
-        });
-        applyBtn.resize(130, 35);
-        applyBtn.color = FlxColor.BLUE;
-        applyBtn.label.color = FlxColor.WHITE;
+        textY = new FlxText(uiBox.x + 160, uiBox.y + 155, 120, "0", 16);
 
         valoresUI.add(selAllBtn);
         valoresUI.add(selDadBtn);
         valoresUI.add(selBfBtn);
         valoresUI.add(resetBtn);
         valoresUI.add(labelX);
-        valoresUI.add(inputX);
+        valoresUI.add(textX);
         valoresUI.add(labelY);
-        valoresUI.add(inputY);
-        valoresUI.add(applyBtn);
+        valoresUI.add(textY);
 
         var exportBtn = new FlxButton(uiBox.x + 20, uiBox.y + 530, "EXPORTAR LUA", function() { exportModchart(); });
         exportBtn.resize(410, 50);
@@ -192,8 +175,8 @@ class ModchartEditorState extends MusicBeatState
         if (selectedStrums.length > 0) {
             var firstSelected = selectedStrums[0];
             var act = strumActions[firstSelected][currentActionIndex];
-            inputX.text = Std.string(Math.round(act.x));
-            inputY.text = Std.string(Math.round(act.y));
+            textX.text = Std.string(Math.round(act.x));
+            textY.text = Std.string(Math.round(act.y));
         }
     }
 
@@ -202,13 +185,7 @@ class ModchartEditorState extends MusicBeatState
         super.update(elapsed);
         timeElapsed += elapsed;
 
-        if (inputX.hasFocus || inputY.hasFocus) {
-            FlxG.sound.muteKeys = [];
-            FlxG.sound.volumeDownKeys = [];
-            FlxG.sound.volumeUpKeys = [];
-        }
-
-        if (FlxG.mouse.justPressed && !inputX.hasFocus && !inputY.hasFocus) {
+        if (FlxG.mouse.justPressed) {
             for (i in 0...8) {
                 var strum = testStrums.members[i];
                 if (FlxG.mouse.overlaps(strum)) {
@@ -246,10 +223,8 @@ class ModchartEditorState extends MusicBeatState
                 action.y = newVisualY - baseDefaultY;
             }
 
-            if (!inputX.hasFocus && !inputY.hasFocus) {
-                inputX.text = Std.string(Math.round(action.x));
-                inputY.text = Std.string(Math.round(action.y));
-            }
+            textX.text = Std.string(Math.round(action.x));
+            textY.text = Std.string(Math.round(action.y));
         }
 
         if (FlxG.mouse.justReleased) {
@@ -319,4 +294,3 @@ class ModchartEditorState extends MusicBeatState
         #end
     }
 }
-
