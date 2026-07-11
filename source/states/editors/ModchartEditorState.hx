@@ -7,9 +7,7 @@ import flixel.util.FlxColor;
 import flixel.math.FlxMath;
 import flixel.ui.FlxButton;
 import flixel.group.FlxGroup.FlxTypedGroup;
-
-// AQUÍ ESTÁ EL CAMBIO: Usamos FlxInputText en lugar de FlxUIInputText
-import flixel.addons.ui.FlxInputText;
+import flixel.addons.text.FlxInputText;
 
 import backend.Paths;
 import backend.Mods;
@@ -44,8 +42,6 @@ class ModchartEditorState extends MusicBeatState
     var dragOffsetY:Float = 0;
 
     var valoresUI:FlxTypedGroup<FlxSprite>;
-    
-    // AQUÍ ESTÁ EL CAMBIO: Variables actualizadas
     var inputX:FlxInputText;
     var inputY:FlxInputText;
 
@@ -128,13 +124,9 @@ class ModchartEditorState extends MusicBeatState
         resetBtn.label.color = FlxColor.WHITE;
 
         var labelX = new FlxText(uiBox.x + 20, uiBox.y + 130, 0, "Posición X:", 16);
-        
-        // AQUÍ ESTÁ EL CAMBIO: Inicialización correcta
         inputX = new FlxInputText(uiBox.x + 20, uiBox.y + 155, 120, "0", 16);
         
         var labelY = new FlxText(uiBox.x + 160, uiBox.y + 130, 0, "Posición Y:", 16);
-        
-        // AQUÍ ESTÁ EL CAMBIO: Inicialización correcta
         inputY = new FlxInputText(uiBox.x + 160, uiBox.y + 155, 120, "0", 16);
 
         var applyBtn = new FlxButton(uiBox.x + 300, uiBox.y + 150, "APLICAR", function() {
