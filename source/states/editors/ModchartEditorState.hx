@@ -6,8 +6,7 @@ import flixel.text.FlxText;
 import flixel.util.FlxColor;
 import flixel.math.FlxPoint;
 import flixel.math.FlxMath;
-import flixel.ui.FlxButton;
-import flixel.addons.ui.FlxUIButton; // <-- ¡La librería mágica que permite usar .resize()!
+import flixel.ui.FlxButton; // Solo usamos el botón normal y nativo
 import flixel.group.FlxGroup.FlxTypedGroup;
 import flixel.group.FlxGroup;
 import backend.Paths;
@@ -122,20 +121,23 @@ class ModchartEditorState extends MusicBeatState
         pageText.setFormat(Paths.font("vcr.ttf"), 16, FlxColor.WHITE, CENTER);
         add(pageText);
 
-        var btnPrev = new FlxUIButton(uiBox.x + 20, uiBox.y + 135, "< Atrás", function() { changePage(-1); });
-        var btnNext = new FlxUIButton(uiBox.x + 280, uiBox.y + 135, "Sig >", function() { changePage(1); });
-        btnPrev.resize(80, 30); btnNext.resize(80, 30);
+        var btnPrev = new FlxButton(uiBox.x + 20, uiBox.y + 135, "< Atrás", function() { changePage(-1); });
+        var btnNext = new FlxButton(uiBox.x + 280, uiBox.y + 135, "Sig >", function() { changePage(1); });
+        
+        // Damos tamaño con makeGraphic en vez de resize
+        btnPrev.makeGraphic(80, 30, 0xFF444444); btnPrev.label.color = FlxColor.WHITE;
+        btnNext.makeGraphic(80, 30, 0xFF444444); btnNext.label.color = FlxColor.WHITE;
         add(btnPrev); add(btnNext);
 
         // Botones Inferiores (Exportar y Reset)
-        var exportBtn = new FlxUIButton(uiBox.x + 20, uiBox.y + 500, "GENERAR LUA", function() { exportToUltimateLua(); });
-        exportBtn.resize(170, 35);
-        exportBtn.color = FlxColor.LIME;
+        var exportBtn = new FlxButton(uiBox.x + 20, uiBox.y + 500, "GENERAR LUA", function() { exportToUltimateLua(); });
+        exportBtn.makeGraphic(170, 35, FlxColor.LIME);
+        exportBtn.label.color = FlxColor.BLACK;
         add(exportBtn);
 
-        var resetBtn = new FlxUIButton(uiBox.x + 210, uiBox.y + 500, "RESET TODO", function() { resetAll(); });
-        resetBtn.resize(170, 35);
-        resetBtn.color = FlxColor.RED;
+        var resetBtn = new FlxButton(uiBox.x + 210, uiBox.y + 500, "RESET TODO", function() { resetAll(); });
+        resetBtn.makeGraphic(170, 35, FlxColor.RED);
+        resetBtn.label.color = FlxColor.WHITE;
         add(resetBtn);
 
         var closeButton = new FlxButton(uiBox.x + 365, uiBox.y + 10, "X", function() { MusicBeatState.switchState(new states.editors.MasterEditorMenu()); });
@@ -156,11 +158,16 @@ class ModchartEditorState extends MusicBeatState
         txt.setFormat(Paths.font("vcr.ttf"), 14, FlxColor.WHITE);
         grp.add(txt);
 
-        var btnMinus = new FlxUIButton(uiBox.x + 20, uiBox.y + yPos + 22, "- Menos", function() { changeFunc(-step); updateUI(); });
-        var btnPlus = new FlxUIButton(uiBox.x + 220, uiBox.y + yPos + 22, "+ Más", function() { changeFunc(step); updateUI(); });
+        var btnMinus = new FlxButton(uiBox.x + 20, uiBox.y + yPos + 22, "- Menos", function() { changeFunc(-step); updateUI(); });
+        var btnPlus = new FlxButton(uiBox.x + 220, uiBox.y + yPos + 22, "+ Más", function() { changeFunc(step); updateUI(); });
         
-        btnMinus.resize(160, 35);
-        btnPlus.resize(160, 35);
+        // Ajustamos tamaño usando gráficas sólidas grises
+        btnMinus.makeGraphic(160, 35, 0xFF444444);
+        btnMinus.label.color = FlxColor.WHITE;
+        
+        btnPlus.makeGraphic(160, 35, 0xFF444444);
+        btnPlus.label.color = FlxColor.WHITE;
+        
         grp.add(btnMinus);
         grp.add(btnPlus);
     }
@@ -312,4 +319,3 @@ class ModchartEditorState extends MusicBeatState
         #end
     }
 }
-
