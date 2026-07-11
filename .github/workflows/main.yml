@@ -9,12 +9,11 @@ jobs:
       matrix:
         include:
           - name: Android
-            os: macos-15
+            os: ubuntu-latest
             buildArgs: "android -ONLY_ARMV7"
             setupCommand: sh ./setup/unix.sh
             artifactName: androidBuild
             artifactPath: "export/release/android/bin/app/build/outputs/apk/release/*.apk"
-          - name: iOS
     uses: ./.github/workflows/build.yml
     with:
         name: ${{ matrix.name }}
@@ -23,3 +22,4 @@ jobs:
         setupCommand: ${{ matrix.setupCommand }}
         artifactName: ${{ matrix.artifactName }}
         artifactPath: ${{ matrix.artifactPath }}
+        
