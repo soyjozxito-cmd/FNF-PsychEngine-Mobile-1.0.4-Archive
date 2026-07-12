@@ -1,0 +1,2 @@
+value 1 = direction(left or right)
+value 2 = opaciticy(0 to 1)

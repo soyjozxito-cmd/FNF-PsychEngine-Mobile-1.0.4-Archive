@@ -1,0 +1,6 @@
+Moment from "Mind Sides" - The end of the "Uproar" song.
+Value 1: -- BF Silhouette.
+0 -> Shows white background.
+1 -> Shows boyfriend Silhouette.
+2 -> Fades out.
+

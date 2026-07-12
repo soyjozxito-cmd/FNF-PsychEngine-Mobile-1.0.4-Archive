@@ -1,0 +1,6 @@
+value 1 = attack song type(1,2,3,4)
+1 = single
+2 = double
+3 = triple
+4 = quad
+value 2 = instakill(put anything)

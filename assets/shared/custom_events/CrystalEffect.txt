@@ -1,0 +1,2 @@
+For "Crystallized" song, cause there are effects, yeah.
+Value1 -- Screen Effects. Check lua, I'm lazy to add all variants here.

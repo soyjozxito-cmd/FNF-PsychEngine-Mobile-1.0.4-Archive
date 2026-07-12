@@ -1,0 +1,2 @@
+event used on street-kb/street-termination stage
+value 1 = animation(burst,burstfast,burstfaster)

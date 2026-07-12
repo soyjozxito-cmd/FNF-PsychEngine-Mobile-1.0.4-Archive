@@ -1,0 +1,2 @@
+This event triggers an alert and damages player, if he doesn't press space.
+If player presses space, he won't take damage.

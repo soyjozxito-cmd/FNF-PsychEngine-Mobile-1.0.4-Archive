@@ -1,0 +1,4 @@
+Makes screen dark. Yep, simple.
+Value 1: -- Makes screen dark.
+0 -> Shows black screen.
+1 -> Shows white screen.

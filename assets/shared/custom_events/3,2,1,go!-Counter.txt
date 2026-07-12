@@ -1,0 +1,9 @@
+Custom "3,2,1,go!" for any moment. Yeah, I'm shocked too.
+Value1: -- Counter.
+3 -> shows "3".
+2 -> shows "2".
+1 -> shows "1".
+go -> shows "GO!".
+
+Value2: -- Sound.
++sound -> enables intro sound.

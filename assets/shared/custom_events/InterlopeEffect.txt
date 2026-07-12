@@ -1,0 +1,8 @@
+value 1 = modchart(0,3/5,4,6)
+value 2 = interlope effects(5/6)
+(1,2,3 and 4 is used on Interlope Intro)
+modChart: 
+0 = notes back to their position.
+3/5 = notes move from left to right.
+4 = notes make a smooth movement.
+6 = note bounce effect.
