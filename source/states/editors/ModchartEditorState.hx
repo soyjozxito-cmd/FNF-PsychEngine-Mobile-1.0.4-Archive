@@ -269,7 +269,7 @@ class ModchartEditorState extends MusicBeatState
 		archivoGroup = new FlxTypedGroup<FlxSprite>();
 		add(archivoGroup);
 		loadListGroup = new FlxTypedGroup<FlxSprite>();
-		archivoGroup.add(loadListGroup);
+		add(loadListGroup);
 
 		var lbl = new FlxText(30, 215, 400, 'Nombre del modchart:', 18);
 		archivoGroup.add(lbl);
@@ -607,14 +607,14 @@ class ModchartEditorState extends MusicBeatState
 		txtStepMode = stepBtn.label;
 
 		// Campos numéricos: X, Y, Angle, Alpha, Direction (fila 1) / Duration, Delay (fila 2)
-		txtX = addNumField(valoresGroup, 30, 340, 'X', function() posStep(), function(d) nudge('x', d));
-		txtY = addNumField(valoresGroup, 230, 340, 'Y', function() posStep(), function(d) nudge('y', d));
-		txtAngle = addNumField(valoresGroup, 430, 340, 'Ángulo', function() posStep(), function(d) nudge('angle', d));
-		txtAlpha = addNumField(valoresGroup, 630, 340, 'Alpha', function() alphaStep(), function(d) nudge('alpha', d));
-		txtDirection = addNumField(valoresGroup, 830, 340, 'Dirección', function() posStep(), function(d) nudge('direction', d));
+		txtX = addNumField(valoresGroup, 30, 340, 'X', function() return posStep(), function(d) nudge('x', d));
+		txtY = addNumField(valoresGroup, 230, 340, 'Y', function() return posStep(), function(d) nudge('y', d));
+		txtAngle = addNumField(valoresGroup, 430, 340, 'Ángulo', function() return posStep(), function(d) nudge('angle', d));
+		txtAlpha = addNumField(valoresGroup, 630, 340, 'Alpha', function() return alphaStep(), function(d) nudge('alpha', d));
+		txtDirection = addNumField(valoresGroup, 830, 340, 'Dirección', function() return posStep(), function(d) nudge('direction', d));
 
-		txtDuration = addNumField(valoresGroup, 30, 420, 'Duración', function() timeStep(), function(d) nudge('duration', d));
-		txtDelay = addNumField(valoresGroup, 230, 420, 'Delay', function() timeStep(), function(d) nudge('delay', d));
+		txtDuration = addNumField(valoresGroup, 30, 420, 'Duración', function() return timeStep(), function(d) nudge('duration', d));
+		txtDelay = addNumField(valoresGroup, 230, 420, 'Delay', function() return timeStep(), function(d) nudge('delay', d));
 
 		var unitBtn = new FlxButton(430, 440, 'Unidad: segundos', function() cycleDurationUnit(1));
 		unitBtn.setGraphicSize(210, 46);
