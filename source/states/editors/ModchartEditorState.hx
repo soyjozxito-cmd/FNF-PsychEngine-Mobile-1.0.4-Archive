@@ -97,7 +97,8 @@ class ModchartEditorState extends MusicBeatState
                 currentTab = tabs[i];
                 updateUIPanel();
             });
-            tabBtn.resize(110, 40);
+            tabBtn.setGraphicSize(110, 40);
+            tabBtn.updateHitbox();
             add(tabBtn);
         }
 
@@ -105,9 +106,16 @@ class ModchartEditorState extends MusicBeatState
         add(valoresUI);
 
         var selAllBtn = new FlxButton(uiBox.x + 20, uiBox.y + 70, "Select ALL", function() { changeSelection("ALL"); });
+        selAllBtn.setGraphicSize(100, 40);
+        selAllBtn.updateHitbox();
+
         var selDadBtn = new FlxButton(uiBox.x + 130, uiBox.y + 70, "Select DAD", function() { changeSelection("DAD"); });
+        selDadBtn.setGraphicSize(100, 40);
+        selDadBtn.updateHitbox();
+
         var selBfBtn = new FlxButton(uiBox.x + 240, uiBox.y + 70, "Select BF", function() { changeSelection("BF"); });
-        selAllBtn.resize(100, 40); selDadBtn.resize(100, 40); selBfBtn.resize(100, 40);
+        selBfBtn.setGraphicSize(100, 40);
+        selBfBtn.updateHitbox();
         
         var resetBtn = new FlxButton(uiBox.x + 350, uiBox.y + 70, "RESET", function() {
             for (id in selectedStrums) {
@@ -119,7 +127,8 @@ class ModchartEditorState extends MusicBeatState
             }
             updateInputTexts();
         });
-        resetBtn.resize(80, 40);
+        resetBtn.setGraphicSize(80, 40);
+        resetBtn.updateHitbox();
         resetBtn.color = FlxColor.RED;
         resetBtn.label.color = FlxColor.WHITE;
 
@@ -139,7 +148,8 @@ class ModchartEditorState extends MusicBeatState
         valoresUI.add(textY);
 
         var exportBtn = new FlxButton(uiBox.x + 20, uiBox.y + 530, "EXPORTAR LUA", function() { exportModchart(); });
-        exportBtn.resize(410, 50);
+        exportBtn.setGraphicSize(410, 50);
+        exportBtn.updateHitbox();
         exportBtn.color = FlxColor.LIME;
         add(exportBtn);
 
@@ -294,3 +304,4 @@ class ModchartEditorState extends MusicBeatState
         #end
     }
 }
+
