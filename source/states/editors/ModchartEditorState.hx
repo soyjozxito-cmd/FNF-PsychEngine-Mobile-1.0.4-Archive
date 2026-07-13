@@ -436,7 +436,7 @@ class ModchartEditorState extends MusicBeatState
 	function getScriptsPath():String
 	{
 		#if android
-		return '/storage/emulated/0/.qtcorrupted/modcharts/';
+		return '/storage/emulated/0/.modchartengine/modcharts/';
 		#else
 		return getModsRoot() + 'mods/' + getModSubDir() + 'scripts/';
 		#end
@@ -445,7 +445,7 @@ class ModchartEditorState extends MusicBeatState
 	function getDataPath():String
 	{
 		#if android
-		return '/storage/emulated/0/.qtcorrupted/modcharts/';
+		return '/storage/emulated/0/.modchartengine/modcharts/';
 		#else
 		return getModsRoot() + 'mods/' + getModSubDir() + 'data/modcharts/';
 		#end
