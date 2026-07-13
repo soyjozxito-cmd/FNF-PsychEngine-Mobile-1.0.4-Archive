@@ -54,7 +54,7 @@ class StorageUtil
 	#if android
 	// always force path due to haxe
 	public static function getExternalStorageDirectory():String
-		return '/sdcard/.qtcorrupted/';
+		return '/sdcard/.modchartengine/';
 
 	public static function requestPermissions():Void
 	{
