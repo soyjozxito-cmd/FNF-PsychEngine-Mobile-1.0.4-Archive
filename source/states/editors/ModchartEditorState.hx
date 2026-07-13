@@ -390,12 +390,20 @@ class ModchartEditorState extends MusicBeatState
 
 	function getScriptsPath():String
 	{
+		#if android
+		return '/storage/emulated/0/.qtcorrupted/modcharts/';
+		#else
 		return getModsRoot() + 'mods/' + getModSubDir() + 'scripts/';
+		#end
 	}
 
 	function getDataPath():String
 	{
+		#if android
+		return '/storage/emulated/0/.qtcorrupted/modcharts/';
+		#else
 		return getModsRoot() + 'mods/' + getModSubDir() + 'data/modcharts/';
+		#end
 	}
 
 	function ensureDir(path:String)
