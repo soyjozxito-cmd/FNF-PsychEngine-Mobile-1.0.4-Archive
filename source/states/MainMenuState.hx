@@ -30,13 +30,11 @@ class MainMenuState extends MusicBeatState
 		#if MODS_ALLOWED 'mods', #end
 		'credits'
 	];
-
 	var leftOption:String = #if ACHIEVEMENTS_ALLOWED 'achievements' #else null #end;
 	var rightOption:String = 'options';
 
 	var magenta:FlxSprite;
 	var camFollow:FlxObject;
-
 	static var showOutdatedWarning:Bool = true;
 	override function create()
 	{
@@ -75,7 +73,6 @@ class MainMenuState extends MusicBeatState
 		magenta.visible = false;
 		magenta.color = 0xFFfd719b;
 		add(magenta);
-
 		menuItems = new FlxTypedGroup<FlxSprite>();
 		add(menuItems);
 
@@ -102,6 +99,14 @@ class MainMenuState extends MusicBeatState
 		fnfVer.scrollFactor.set();
 		fnfVer.setFormat(Paths.font("vcr.ttf"), 16, FlxColor.WHITE, LEFT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
 		add(fnfVer);
+
+		// --- TEXTO PERSONALIZADO ARRIBA A LA DERECHA ---
+		var jozxitoText:FlxText = new FlxText(0, 15, FlxG.width - 15, "Modchart Engine by Jozxito_tk", 16);
+		jozxitoText.scrollFactor.set(); // Evita que se mueva con la camara del menu
+		jozxitoText.setFormat(Paths.font("vcr.ttf"), 16, FlxColor.WHITE, RIGHT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+		jozxitoText.borderSize = 1.5;
+		add(jozxitoText);
+
 		changeItem();
 
 		#if ACHIEVEMENTS_ALLOWED
@@ -124,7 +129,6 @@ class MainMenuState extends MusicBeatState
 		#end
 
 		FlxG.camera.follow(camFollow, null, 0.15);
-
 		addTouchPad('NONE', 'E');
 	}
 
@@ -144,7 +148,6 @@ class MainMenuState extends MusicBeatState
 	}
 
 	var selectedSomethin:Bool = false;
-
 	var timeNotMoving:Float = 0;
 	override function update(elapsed:Float)
 	{
@@ -155,7 +158,6 @@ class MainMenuState extends MusicBeatState
 		{
 			if (controls.UI_UP_P)
 				changeItem(-1);
-
 			if (controls.UI_DOWN_P)
 				changeItem(1);
 
@@ -326,12 +328,12 @@ class MainMenuState extends MusicBeatState
 							selectedSomethin = false;
 							item.visible = true;
 						default:
-							trace('Menu Item ${option} doesn\'t do anything');
+							trace('Menu Item ${option} doesn\\'t do anything');
 							selectedSomethin = false;
 							item.visible = true;
 					}
 				});
-				
+
 				for (memb in menuItems)
 				{
 					if(memb == item)
