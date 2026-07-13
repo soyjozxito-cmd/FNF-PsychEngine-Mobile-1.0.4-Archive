@@ -62,6 +62,7 @@ class ModchartEditorState extends MusicBeatState
 	var modchartName:String = 'NuevoModchart';
 	var camZooming:Bool = true;
 	var scrollInvertY:Bool = true;
+	var loopActions:Bool = true;
 
 	// strumActions[i] = lista de acciones del strum i (0-7). Todos los strums
 	// comparten la MISMA cantidad de acciones (simplificacion a proposito: cada
@@ -114,6 +115,7 @@ class ModchartEditorState extends MusicBeatState
 	var txtModName:FlxText;
 	var camZoomBtn:FlxButton;
 	var scrollInvertBtn:FlxButton;
+	var loopBtn:FlxButton;
 
 	// Drag / touch
 	var mouseDragStrum:Int = -1;
@@ -215,11 +217,27 @@ class ModchartEditorState extends MusicBeatState
 		add(testStrums);
 
 		var arrowDirs:Array<String> = ['left', 'down', 'up', 'right'];
+		var mid:Bool = ClientPrefs.data.middlescroll;
+		var centerStartX:Float = (FlxG.width / 2) - (4 * 90 / 2) + 45;
+
 		for (i in 0...8)
 		{
 			var isPlayer:Bool = (i >= 4);
-			var targetX:Float = isPlayer ? 660 + ((i - 4) * 90) : 60 + (i * 90);
-			var targetY:Float = 15;
+			var lane:Int = isPlayer ? (i - 4) : i;
+			var targetX:Float;
+			var targetY:Float;
+			if (mid)
+			{
+				// Con middlescroll el juego muestra ambas líneas de strums centradas.
+				// Las separo un poco en Y para poder seguir tocando/arrastrando cada una.
+				targetX = centerStartX + (lane * 90);
+				targetY = isPlayer ? 15 : 45;
+			}
+			else
+			{
+				targetX = isPlayer ? 660 + (lane * 90) : 60 + (lane * 90);
+				targetY = 15;
+			}
 
 			strumBaseX.push(targetX);
 			strumBaseY.push(targetY);
@@ -365,11 +383,32 @@ class ModchartEditorState extends MusicBeatState
 		modchartName = 'NuevoModchart';
 		camZooming = true;
 		scrollInvertY = true;
+		loopActions = true;
 		strumActions = [for (i in 0...8) [defaultAction()]];
 		currentActionIndex = 0;
 		selectPreset('ALL');
 		refreshFieldsFromModel();
+		refreshConfigButtons();
 		setStatus('Nuevo modchart creado.');
+	}
+
+	function refreshConfigButtons()
+	{
+		if (camZoomBtn != null)
+		{
+			camZoomBtn.label.text = camZooming ? 'Activado' : 'Desactivado';
+			centerLabel(camZoomBtn, 18);
+		}
+		if (scrollInvertBtn != null)
+		{
+			scrollInvertBtn.label.text = scrollInvertY ? 'Activado' : 'Desactivado';
+			centerLabel(scrollInvertBtn, 18);
+		}
+		if (loopBtn != null)
+		{
+			loopBtn.label.text = loopActions ? 'Activado (loop)' : 'Desactivado (se detiene)';
+			centerLabel(loopBtn, 18);
+		}
 	}
 
 	function getModsRoot():String
@@ -425,6 +464,7 @@ class ModchartEditorState extends MusicBeatState
 				name: modchartName,
 				camZooming: camZooming,
 				scrollInvertY: scrollInvertY,
+				loopActions: loopActions,
 				actions: strumActions
 			};
 			sys.io.File.saveContent(dir + modchartName + '.json', haxe.Json.stringify(data));
@@ -452,10 +492,12 @@ class ModchartEditorState extends MusicBeatState
 			modchartName = data.name;
 			camZooming = data.camZooming;
 			scrollInvertY = data.scrollInvertY;
+			loopActions = (data.loopActions == null) ? true : data.loopActions;
 			strumActions = data.actions;
 			currentActionIndex = 0;
 			selectPreset('ALL');
 			refreshFieldsFromModel();
+			refreshConfigButtons();
 			setStatus('Cargado: ' + fname);
 		}
 		catch (e:Dynamic)
@@ -958,7 +1000,7 @@ class ModchartEditorState extends MusicBeatState
 				var tw = FlxTween.tween(spr, {x: tx, y: ty, angle: a.angle, alpha: a.alpha}, a.duration, {
 					ease: ease,
 					onComplete: function(_) {
-						if (arr.length > 1)
+						if (arr.length > 1 && (loopActions || stepIdx + 1 < arr.length))
 							runTestStep(i, stepIdx + 1);
 					}
 				});
@@ -970,7 +1012,7 @@ class ModchartEditorState extends MusicBeatState
 				spr.y = ty;
 				spr.angle = a.angle;
 				spr.alpha = a.alpha;
-				if (arr.length > 1)
+				if (arr.length > 1 && (loopActions || stepIdx + 1 < arr.length))
 				{
 					var t = new FlxTimer().start(0.02, function(_) runTestStep(i, stepIdx + 1));
 					testTimers.push(t);
@@ -1055,7 +1097,18 @@ class ModchartEditorState extends MusicBeatState
 		scrollInvertBtn.updateHitbox();
 		configGroup.add(scrollInvertBtn);
 
-		var info = new FlxText(30, 450, FlxG.width - 60,
+		var lbl3 = new FlxText(30, 450, 700, '¿Al llegar a la última acción, vuelve a la acción 1 (loop)?', 18);
+		configGroup.add(lbl3);
+		loopBtn = new FlxButton(30, 485, loopActions ? 'Activado (loop)' : 'Desactivado (se detiene)', function() {
+			loopActions = !loopActions;
+			loopBtn.label.text = loopActions ? 'Activado (loop)' : 'Desactivado (se detiene)';
+			centerLabel(loopBtn, 18);
+		});
+		loopBtn.setGraphicSize(320, 50);
+		loopBtn.updateHitbox();
+		configGroup.add(loopBtn);
+
+		var info = new FlxText(30, 560, FlxG.width - 60,
 			'Estas opciones se guardan junto con el modchart y también se aplican en el .lua exportado.', 15);
 		info.color = FlxColor.GRAY;
 		configGroup.add(info);
@@ -1220,11 +1273,11 @@ class ModchartEditorState extends MusicBeatState
 		buf.add('\t\tnoteTweenAlpha(tag..\'_al\', i, step.alpha, dur, step.ease)\n');
 		buf.add('\t\tnoteTweenDirection(tag..\'_d\', i, step.direction, dur, step.ease)\n');
 		buf.add('\telse\n');
-		buf.add('\t\tsetProperty(\'strumLineNotes.members[\'..i..\'].x\', targetX)\n');
-		buf.add('\t\tsetProperty(\'strumLineNotes.members[\'..i..\'].y\', targetY)\n');
-		buf.add('\t\tsetProperty(\'strumLineNotes.members[\'..i..\'].angle\', step.angle)\n');
-		buf.add('\t\tsetProperty(\'strumLineNotes.members[\'..i..\'].alpha\', step.alpha)\n');
-		buf.add('\t\tsetProperty(\'strumLineNotes.members[\'..i..\'].direction\', step.direction)\n');
+		buf.add('\t\tsetPropertyFromGroup(\'strumLineNotes\', i, \'x\', targetX)\n');
+		buf.add('\t\tsetPropertyFromGroup(\'strumLineNotes\', i, \'y\', targetY)\n');
+		buf.add('\t\tsetPropertyFromGroup(\'strumLineNotes\', i, \'angle\', step.angle)\n');
+		buf.add('\t\tsetPropertyFromGroup(\'strumLineNotes\', i, \'alpha\', step.alpha)\n');
+		buf.add('\t\tsetPropertyFromGroup(\'strumLineNotes\', i, \'direction\', step.direction)\n');
 		buf.add('\t\tif #modchartSteps[i] > 1 then advanceModchartStep(i) end\n');
 		buf.add('\tend\n');
 		buf.add('end\n\n');
@@ -1245,11 +1298,15 @@ class ModchartEditorState extends MusicBeatState
 		buf.add('\trunTimer(\'modchart_' + safeName + '_strum\'..i..\'_delay\'..stepIndex, dur)\n');
 		buf.add('end\n\n');
 
+		buf.add('local loopActions = ' + (loopActions ? 'true' : 'false') + '\n');
 		buf.add('function advanceModchartStep(i)\n');
 		buf.add('\tlocal steps = modchartSteps[i]\n');
 		buf.add('\tif not steps or #steps <= 1 then return end\n');
 		buf.add('\tlocal nextIdx = curStepIndex[i] + 1\n');
-		buf.add('\tif nextIdx >= #steps then nextIdx = 0 end\n');
+		buf.add('\tif nextIdx >= #steps then\n');
+		buf.add('\t\tif not loopActions then return end\n');
+		buf.add('\t\tnextIdx = 0\n');
+		buf.add('\tend\n');
 		buf.add('\tapplyModchartStep(i, nextIdx)\n');
 		buf.add('end\n\n');
 
@@ -1257,8 +1314,8 @@ class ModchartEditorState extends MusicBeatState
 		if (!camZooming)
 			buf.add('\tsetProperty(\'camZooming\', false)\n');
 		buf.add('\tfor i = 0, 7 do\n');
-		buf.add('\t\tbaseX[i] = getProperty(\'strumLineNotes.members[\'..i..\'].x\')\n');
-		buf.add('\t\tbaseY[i] = getProperty(\'strumLineNotes.members[\'..i..\'].y\')\n');
+		buf.add('\t\tbaseX[i] = getPropertyFromGroup(\'strumLineNotes\', i, \'x\')\n');
+		buf.add('\t\tbaseY[i] = getPropertyFromGroup(\'strumLineNotes\', i, \'y\')\n');
 		buf.add('\t\tapplyModchartStep(i, 0)\n');
 		buf.add('\tend\n');
 		buf.add('end\n\n');
