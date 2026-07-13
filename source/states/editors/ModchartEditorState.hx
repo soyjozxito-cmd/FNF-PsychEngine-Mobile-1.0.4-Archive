@@ -83,6 +83,9 @@ class ModchartEditorState extends MusicBeatState
 	var strumBaseX:Array<Float> = [];
 	var strumBaseY:Array<Float> = [];
 	var isDownscroll:Bool = false;
+	var middlescrollActive:Bool = false;
+	var showOpponentMid:Bool = false;
+	var opponentToggleBtn:FlxButton;
 
 	var uiBox:FlxSprite;
 	var tabsGroup:FlxTypedGroup<FlxSprite>;
@@ -166,6 +169,7 @@ class ModchartEditorState extends MusicBeatState
 		switchTab('Valores');
 		selectPreset('ALL');
 		refreshFieldsFromModel();
+		updateMidOpponentVisibility();
 
 		for (g in [tabsGroup, archivoGroup, valoresGroup, pruebaGroup, configGroup, keyboardGroup])
 		{
@@ -217,7 +221,8 @@ class ModchartEditorState extends MusicBeatState
 		add(testStrums);
 
 		var arrowDirs:Array<String> = ['left', 'down', 'up', 'right'];
-		var mid:Bool = ClientPrefs.data.middlescroll;
+		var mid:Bool = ClientPrefs.data.middleScroll;
+		middlescrollActive = mid;
 		var centerStartX:Float = (FlxG.width / 2) - (4 * 90 / 2) + 45;
 
 		for (i in 0...8)
@@ -228,10 +233,11 @@ class ModchartEditorState extends MusicBeatState
 			var targetY:Float;
 			if (mid)
 			{
-				// Con middlescroll el juego muestra ambas líneas de strums centradas.
-				// Las separo un poco en Y para poder seguir tocando/arrastrando cada una.
+				// Con middlescroll el juego muestra las flechas centradas y superpuestas.
+				// Por defecto solo mostramos/editamos las del Player; las de Opponent
+				// quedan ocultas hasta que se activen con el botón de la pestaña Valores.
 				targetX = centerStartX + (lane * 90);
-				targetY = isPlayer ? 15 : 45;
+				targetY = 15;
 			}
 			else
 			{
@@ -662,6 +668,20 @@ class ModchartEditorState extends MusicBeatState
 		txtSelection.setFormat(Paths.font('vcr.ttf'), 18, FlxColor.CYAN, 'left');
 		valoresGroup.add(txtSelection);
 
+		if (middlescrollActive)
+		{
+			opponentToggleBtn = new FlxButton(1030, 215, 'Mostrar Opponent', function() {
+				showOpponentMid = !showOpponentMid;
+				opponentToggleBtn.label.text = showOpponentMid ? 'Ocultar Opponent' : 'Mostrar Opponent';
+				centerLabel(opponentToggleBtn, 15);
+				updateMidOpponentVisibility();
+			});
+			opponentToggleBtn.setGraphicSize(200, 46);
+			opponentToggleBtn.updateHitbox();
+			opponentToggleBtn.color = FlxColor.PURPLE;
+			valoresGroup.add(opponentToggleBtn);
+		}
+
 		// Navegación de acciones
 		var prevBtn = new FlxButton(30, 270, '< Anterior', function() {
 			if (currentActionIndex > 0)
@@ -813,6 +833,19 @@ class ModchartEditorState extends MusicBeatState
 	{
 		for (i in 0...8)
 			testStrums.members[i].color = (selectedStrums.indexOf(i) >= 0) ? FlxColor.CYAN : FlxColor.WHITE;
+	}
+
+	/**
+	 * Con middlescroll activado, por defecto solo se ven/editan las flechas
+	 * del Player (como en el juego real); las de Opponent quedan escondidas
+	 * hasta que se activan con el botón "Mostrar Opponent".
+	 */
+	function updateMidOpponentVisibility()
+	{
+		if (!middlescrollActive)
+			return;
+		for (i in 0...4)
+			testStrums.members[i].visible = showOpponentMid;
 	}
 
 	// ---------------------------------------------------------------
@@ -1128,7 +1161,7 @@ class ModchartEditorState extends MusicBeatState
 			{
 				for (i in 0...8)
 				{
-					if (FlxG.mouse.overlaps(testStrums.members[i]))
+					if (testStrums.members[i].visible && FlxG.mouse.overlaps(testStrums.members[i]))
 					{
 						mouseDragStrum = i;
 						selectSingle(i);
@@ -1148,7 +1181,7 @@ class ModchartEditorState extends MusicBeatState
 				{
 					for (i in 0...8)
 					{
-						if (touch.overlaps(testStrums.members[i]))
+						if (testStrums.members[i].visible && touch.overlaps(testStrums.members[i]))
 						{
 							touchDragMap.set(touch.touchPointID, i);
 							selectSingle(i);
@@ -1313,6 +1346,14 @@ class ModchartEditorState extends MusicBeatState
 		buf.add('function onCreatePost()\n');
 		if (!camZooming)
 			buf.add('\tsetProperty(\'camZooming\', false)\n');
+		buf.add('\tlocal authoredMiddlescroll = ' + (ClientPrefs.data.middleScroll ? 'true' : 'false') + '\n');
+		buf.add('\tif middleScroll ~= authoredMiddlescroll then\n');
+		buf.add('\t\tlocal shift = authoredMiddlescroll and -320 or 320\n');
+		buf.add('\t\tfor i = 0, 7 do\n');
+		buf.add('\t\t\tsetPropertyFromGroup(\'strumLineNotes\', i, \'x\', getPropertyFromGroup(\'strumLineNotes\', i, \'x\') + shift)\n');
+		buf.add('\t\tend\n');
+		buf.add('\t\tsetPropertyFromClass(\'backend.ClientPrefs\', \'data.middleScroll\', authoredMiddlescroll)\n');
+		buf.add('\tend\n');
 		buf.add('\tfor i = 0, 7 do\n');
 		buf.add('\t\tbaseX[i] = getPropertyFromGroup(\'strumLineNotes\', i, \'x\')\n');
 		buf.add('\t\tbaseY[i] = getPropertyFromGroup(\'strumLineNotes\', i, \'y\')\n');
