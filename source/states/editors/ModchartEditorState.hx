@@ -94,6 +94,8 @@ class ModchartEditorState extends MusicBeatState
 
 	var currentTab:String = 'Valores';
 	var statusText:FlxText;
+	var uiVisible:Bool = true;
+	var uiToggleBtn:FlxButton;
 
 	// Campos de texto (solo lectura, se editan con los botones -/+)
 	var txtActionInfo:FlxText;
@@ -154,7 +156,8 @@ class ModchartEditorState extends MusicBeatState
 		buildConfigTab();
 		buildKeyboard();
 
-		statusText = new FlxText(20, FlxG.height - 26, FlxG.width - 40, '', 14);
+		statusText = new FlxText(20, FlxG.height - 46, FlxG.width - 40, '', 16);
+		statusText.setFormat(Paths.font('vcr.ttf'), 16, FlxColor.YELLOW, 'left');
 		statusText.color = FlxColor.YELLOW;
 		add(statusText);
 
@@ -162,7 +165,32 @@ class ModchartEditorState extends MusicBeatState
 		selectPreset('ALL');
 		refreshFieldsFromModel();
 
+		for (g in [tabsGroup, archivoGroup, valoresGroup, pruebaGroup, configGroup, keyboardGroup])
+		{
+			for (m in g.members)
+			{
+				if (Std.isOfType(m, FlxButton))
+					centerLabel(cast m);
+			}
+		}
+		centerLabel(uiToggleBtn);
+
 		super.create();
+	}
+
+	/**
+	 * Fuerza un tamaño de letra legible y centra el texto del botón (horizontal
+	 * siempre, vertical si la versión de Flixel lo permite). El label por
+	 * defecto de FlxButton queda muy chico y pegado a una esquina.
+	 */
+	function centerLabel(btn:FlxButton, ?fontSize:Int = 20)
+	{
+		if (btn == null || btn.label == null)
+			return;
+		btn.label.setFormat(Paths.font('vcr.ttf'), fontSize, FlxColor.WHITE, 'center');
+		btn.label.fieldWidth = btn.width;
+		btn.label.x = btn.x;
+		btn.label.y = btn.y + (btn.height - btn.label.height) / 2;
 	}
 
 	function defaultAction():ModchartAction
@@ -190,8 +218,8 @@ class ModchartEditorState extends MusicBeatState
 		for (i in 0...8)
 		{
 			var isPlayer:Bool = (i >= 4);
-			var targetX:Float = isPlayer ? 620 + ((i - 4) * 100) : 60 + (i * 100);
-			var targetY:Float = 70;
+			var targetX:Float = isPlayer ? 660 + ((i - 4) * 90) : 60 + (i * 90);
+			var targetY:Float = 15;
 
 			strumBaseX.push(targetX);
 			strumBaseY.push(targetY);
@@ -200,7 +228,7 @@ class ModchartEditorState extends MusicBeatState
 			strum.frames = Paths.getSparrowAtlas('NOTE_assets');
 			strum.animation.addByPrefix('static', 'arrow' + arrowDirs[i % 4].toUpperCase());
 			strum.animation.play('static');
-			strum.setGraphicSize(Std.int(strum.width * 0.6));
+			strum.setGraphicSize(Std.int(strum.width * 0.4));
 			strum.updateHitbox();
 			strum.antialiasing = ClientPrefs.data.antialiasing;
 			strum.ID = i;
@@ -236,19 +264,40 @@ class ModchartEditorState extends MusicBeatState
 		closeButton.updateHitbox();
 		closeButton.color = FlxColor.RED;
 		add(closeButton);
+		centerLabel(closeButton, 26);
+
+		uiToggleBtn = new FlxButton(660, 130, 'Ocultar UI', function() {
+			uiVisible = !uiVisible;
+			uiToggleBtn.label.text = uiVisible ? 'Ocultar UI' : 'Mostrar UI';
+			applyUIVisibility();
+		});
+		uiToggleBtn.setGraphicSize(150, 56);
+		uiToggleBtn.updateHitbox();
+		uiToggleBtn.color = FlxColor.ORANGE;
+		add(uiToggleBtn);
 
 		uiBox = new FlxSprite(10, 200).makeGraphic(FlxG.width - 20, FlxG.height - 230, FlxColor.BLACK);
 		uiBox.alpha = 0.88;
 		add(uiBox);
 	}
 
+	function applyUIVisibility()
+	{
+		uiBox.visible = uiVisible;
+		tabsGroup.visible = tabsGroup.active = uiVisible;
+		archivoGroup.visible = archivoGroup.active = uiVisible && (currentTab == 'Archivo');
+		valoresGroup.visible = valoresGroup.active = uiVisible && (currentTab == 'Valores');
+		pruebaGroup.visible = pruebaGroup.active = uiVisible && (currentTab == 'Prueba');
+		configGroup.visible = configGroup.active = uiVisible && (currentTab == 'Configuración');
+		loadListGroup.visible = loadListGroup.active = uiVisible && (currentTab == 'Archivo');
+		if (statusText != null)
+			statusText.visible = uiVisible;
+	}
+
 	function switchTab(tab:String)
 	{
 		currentTab = tab;
-		archivoGroup.visible = archivoGroup.active = (tab == 'Archivo');
-		valoresGroup.visible = valoresGroup.active = (tab == 'Valores');
-		pruebaGroup.visible = pruebaGroup.active = (tab == 'Prueba');
-		configGroup.visible = configGroup.active = (tab == 'Configuración');
+		applyUIVisibility();
 		if (tab != 'Archivo')
 			hideKeyboard();
 		if (tab == 'Archivo')
@@ -305,7 +354,8 @@ class ModchartEditorState extends MusicBeatState
 		exportBtn.label.color = FlxColor.BLACK;
 		archivoGroup.add(exportBtn);
 
-		var loadLbl = new FlxText(30, 380, 400, 'Modcharts guardados (tocar para cargar):', 16);
+		var loadLbl = new FlxText(30, 380, 500, 'Modcharts guardados (tocar para cargar):', 18);
+		loadLbl.setFormat(Paths.font('vcr.ttf'), 18, FlxColor.WHITE, 'left');
 		archivoGroup.add(loadLbl);
 	}
 
@@ -327,6 +377,8 @@ class ModchartEditorState extends MusicBeatState
 		var root = '';
 		#if android
 		root = lime.system.System.applicationStorageDirectory;
+		if (root.length > 0 && !root.endsWith('/'))
+			root += '/';
 		#end
 		return root;
 	}
@@ -369,7 +421,7 @@ class ModchartEditorState extends MusicBeatState
 			};
 			sys.io.File.saveContent(dir + modchartName + '.json', haxe.Json.stringify(data));
 			FlxG.sound.play(Paths.sound('confirmMenu'));
-			setStatus('Guardado: ' + modchartName + '.json');
+			setStatus('Guardado en: ' + dir + modchartName + '.json');
 			refreshLoadList();
 		}
 		catch (e:Dynamic)
@@ -417,7 +469,7 @@ class ModchartEditorState extends MusicBeatState
 		if (sys.FileSystem.exists(dir))
 		{
 			var files = sys.FileSystem.readDirectory(dir);
-			var y = 410.0;
+			var y = 420.0;
 			for (f in files)
 			{
 				if (f.endsWith('.json'))
@@ -426,10 +478,11 @@ class ModchartEditorState extends MusicBeatState
 					var btn = new FlxButton(30, y, fname, function() {
 						loadModchartData(fname);
 					});
-					btn.setGraphicSize(420, 44);
+					btn.setGraphicSize(420, 46);
 					btn.updateHitbox();
+					centerLabel(btn, 18);
 					loadListGroup.add(btn);
-					y += 50;
+					y += 54;
 					if (y > FlxG.height - 60)
 						break;
 				}
@@ -555,7 +608,8 @@ class ModchartEditorState extends MusicBeatState
 		resetBtn.color = FlxColor.RED;
 		valoresGroup.add(resetBtn);
 
-		txtSelection = new FlxText(640, 220, 300, '', 16);
+		txtSelection = new FlxText(640, 225, 380, '', 18);
+		txtSelection.setFormat(Paths.font('vcr.ttf'), 18, FlxColor.CYAN, 'left');
 		valoresGroup.add(txtSelection);
 
 		// Navegación de acciones
@@ -634,7 +688,8 @@ class ModchartEditorState extends MusicBeatState
 		valoresGroup.add(easeTypeBtn);
 		txtEaseType = easeTypeBtn.label;
 
-		var helpTxt = new FlxText(30, 500, FlxG.width - 60, 'Tocá y arrastrá un strum para seleccionarlo individualmente. Los cambios de esta pestaña se aplican a todos los strums seleccionados, en la acción actual.', 15);
+		var helpTxt = new FlxText(30, 528, FlxG.width - 60, 'Tocá y arrastrá un strum para seleccionarlo individualmente. Los cambios de esta pestaña se aplican a todos los strums seleccionados, en la acción actual.', 17);
+		helpTxt.setFormat(Paths.font('vcr.ttf'), 17, FlxColor.GRAY, 'left');
 		helpTxt.color = FlxColor.GRAY;
 		valoresGroup.add(helpTxt);
 	}
@@ -654,7 +709,8 @@ class ModchartEditorState extends MusicBeatState
 	 */
 	function addNumField(group:FlxTypedGroup<FlxSprite>, x:Float, y:Float, labelStr:String, stepFn:Void->Float, applyDelta:Float->Void):FlxText
 	{
-		var lbl = new FlxText(x, y, 180, labelStr, 15);
+		var lbl = new FlxText(x, y, 180, labelStr, 18);
+		lbl.setFormat(Paths.font('vcr.ttf'), 18, FlxColor.WHITE, 'left');
 		group.add(lbl);
 
 		var minus = new FlxButton(x, y + 22, '-', function() applyDelta(-stepFn()));
@@ -662,7 +718,8 @@ class ModchartEditorState extends MusicBeatState
 		minus.updateHitbox();
 		group.add(minus);
 
-		var valTxt = new FlxText(x + 50, y + 30, 90, '0', 18);
+		var valTxt = new FlxText(x + 50, y + 28, 90, '0', 22);
+		valTxt.setFormat(Paths.font('vcr.ttf'), 22, FlxColor.LIME, 'center');
 		valTxt.alignment = 'center';
 		group.add(valTxt);
 
@@ -864,9 +921,12 @@ class ModchartEditorState extends MusicBeatState
 	{
 		stopTest();
 		testActive = true;
-		for (i in selectedStrums)
+		for (i in 0...8)
+		{
+			FlxTween.cancelTweensOf(testStrums.members[i]);
 			runTestStep(i, 0);
-		setStatus('Reproduciendo prueba...');
+		}
+		setStatus('Reproduciendo prueba (los 8 strums)...');
 	}
 
 	function runTestStep(i:Int, stepIdx:Int)
@@ -929,6 +989,15 @@ class ModchartEditorState extends MusicBeatState
 			if (tw != null)
 				tw.cancel();
 		testTweens = [];
+		for (i in 0...8)
+		{
+			var a = strumActions[i][currentActionIndex];
+			var spr = testStrums.members[i];
+			spr.x = strumBaseX[i] + a.x;
+			spr.y = strumBaseY[i] + a.y;
+			spr.angle = a.angle;
+			spr.alpha = a.alpha;
+		}
 		setStatus('');
 	}
 
@@ -1210,7 +1279,7 @@ class ModchartEditorState extends MusicBeatState
 			var safeName = sanitizeName(modchartName);
 			sys.io.File.saveContent(dir + safeName + '.lua', lua);
 			FlxG.sound.play(Paths.sound('confirmMenu'));
-			setStatus('Exportado: scripts/' + safeName + '.lua');
+			setStatus('Exportado en: ' + dir + safeName + '.lua');
 		}
 		catch (e:Dynamic)
 		{
