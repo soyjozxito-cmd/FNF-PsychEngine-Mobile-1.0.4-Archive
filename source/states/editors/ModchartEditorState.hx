@@ -84,8 +84,6 @@ class ModchartEditorState extends MusicBeatState
 	var strumBaseY:Array<Float> = [];
 	var isDownscroll:Bool = false;
 	var middlescrollActive:Bool = false;
-	var showOpponentMid:Bool = false;
-	var opponentToggleBtn:FlxButton;
 
 	var uiBox:FlxSprite;
 	var tabsGroup:FlxTypedGroup<FlxSprite>;
@@ -169,7 +167,6 @@ class ModchartEditorState extends MusicBeatState
 		switchTab('Valores');
 		selectPreset('ALL');
 		refreshFieldsFromModel();
-		updateMidOpponentVisibility();
 
 		for (g in [tabsGroup, archivoGroup, valoresGroup, pruebaGroup, configGroup, keyboardGroup])
 		{
@@ -189,12 +186,13 @@ class ModchartEditorState extends MusicBeatState
 	 * siempre, vertical si la versión de Flixel lo permite). El label por
 	 * defecto de FlxButton queda muy chico y pegado a una esquina.
 	 */
-	function centerLabel(btn:FlxButton, ?fontSize:Int = 20)
+	function centerLabel(btn:FlxButton, ?fontSize:Int = 18)
 	{
 		if (btn == null || btn.label == null)
 			return;
 		btn.label.setFormat(Paths.font('vcr.ttf'), fontSize, FlxColor.WHITE, 'center');
 		btn.label.fieldWidth = btn.width;
+		btn.label.updateHitbox();
 		btn.label.x = btn.x;
 		btn.label.y = btn.y + (btn.height - btn.label.height) / 2;
 	}
@@ -223,27 +221,19 @@ class ModchartEditorState extends MusicBeatState
 		var arrowDirs:Array<String> = ['left', 'down', 'up', 'right'];
 		var mid:Bool = ClientPrefs.data.middleScroll;
 		middlescrollActive = mid;
-		var centerStartX:Float = (FlxG.width / 2) - (4 * 90 / 2) + 45;
+		// Con middlescroll, ambas líneas de strums se acercan al centro (como en el juego real).
+		var centerStartX:Float = (FlxG.width / 2) - (8 * 66 / 2) + 33;
 
 		for (i in 0...8)
 		{
 			var isPlayer:Bool = (i >= 4);
 			var lane:Int = isPlayer ? (i - 4) : i;
 			var targetX:Float;
-			var targetY:Float;
+			var targetY:Float = 8;
 			if (mid)
-			{
-				// Con middlescroll el juego muestra las flechas centradas y superpuestas.
-				// Por defecto solo mostramos/editamos las del Player; las de Opponent
-				// quedan ocultas hasta que se activen con el botón de la pestaña Valores.
-				targetX = centerStartX + (lane * 90);
-				targetY = 15;
-			}
+				targetX = centerStartX + (i * 66);
 			else
-			{
-				targetX = isPlayer ? 660 + (lane * 90) : 60 + (lane * 90);
-				targetY = 15;
-			}
+				targetX = isPlayer ? 700 + (lane * 110) : 40 + (lane * 110);
 
 			strumBaseX.push(targetX);
 			strumBaseY.push(targetY);
@@ -252,7 +242,7 @@ class ModchartEditorState extends MusicBeatState
 			strum.frames = Paths.getSparrowAtlas('NOTE_assets');
 			strum.animation.addByPrefix('static', 'arrow' + arrowDirs[i % 4].toUpperCase());
 			strum.animation.play('static');
-			strum.setGraphicSize(Std.int(strum.width * 0.4));
+			strum.setGraphicSize(Std.int(strum.width * 0.7));
 			strum.updateHitbox();
 			strum.antialiasing = ClientPrefs.data.antialiasing;
 			strum.ID = i;
@@ -300,8 +290,8 @@ class ModchartEditorState extends MusicBeatState
 		uiToggleBtn.color = FlxColor.ORANGE;
 		add(uiToggleBtn);
 
-		uiBox = new FlxSprite(10, 200).makeGraphic(FlxG.width - 20, FlxG.height - 230, FlxColor.BLACK);
-		uiBox.alpha = 0.88;
+		uiBox = new FlxSprite(30, 205).makeGraphic(FlxG.width - 60, FlxG.height - 235, FlxColor.BLACK);
+		uiBox.alpha = 0.62;
 		add(uiBox);
 	}
 
@@ -668,20 +658,6 @@ class ModchartEditorState extends MusicBeatState
 		txtSelection.setFormat(Paths.font('vcr.ttf'), 18, FlxColor.CYAN, 'left');
 		valoresGroup.add(txtSelection);
 
-		if (middlescrollActive)
-		{
-			opponentToggleBtn = new FlxButton(1030, 215, 'Mostrar Opponent', function() {
-				showOpponentMid = !showOpponentMid;
-				opponentToggleBtn.label.text = showOpponentMid ? 'Ocultar Opponent' : 'Mostrar Opponent';
-				centerLabel(opponentToggleBtn, 15);
-				updateMidOpponentVisibility();
-			});
-			opponentToggleBtn.setGraphicSize(200, 46);
-			opponentToggleBtn.updateHitbox();
-			opponentToggleBtn.color = FlxColor.PURPLE;
-			valoresGroup.add(opponentToggleBtn);
-		}
-
 		// Navegación de acciones
 		var prevBtn = new FlxButton(30, 270, '< Anterior', function() {
 			if (currentActionIndex > 0)
@@ -840,14 +816,6 @@ class ModchartEditorState extends MusicBeatState
 	 * del Player (como en el juego real); las de Opponent quedan escondidas
 	 * hasta que se activan con el botón "Mostrar Opponent".
 	 */
-	function updateMidOpponentVisibility()
-	{
-		if (!middlescrollActive)
-			return;
-		for (i in 0...4)
-			testStrums.members[i].visible = showOpponentMid;
-	}
-
 	// ---------------------------------------------------------------
 	// EDICIÓN DE VALORES
 	// ---------------------------------------------------------------
@@ -1348,10 +1316,6 @@ class ModchartEditorState extends MusicBeatState
 			buf.add('\tsetProperty(\'camZooming\', false)\n');
 		buf.add('\tlocal authoredMiddlescroll = ' + (ClientPrefs.data.middleScroll ? 'true' : 'false') + '\n');
 		buf.add('\tif middleScroll ~= authoredMiddlescroll then\n');
-		buf.add('\t\tlocal shift = authoredMiddlescroll and -320 or 320\n');
-		buf.add('\t\tfor i = 0, 7 do\n');
-		buf.add('\t\t\tsetPropertyFromGroup(\'strumLineNotes\', i, \'x\', getPropertyFromGroup(\'strumLineNotes\', i, \'x\') + shift)\n');
-		buf.add('\t\tend\n');
 		buf.add('\t\tsetPropertyFromClass(\'backend.ClientPrefs\', \'data.middleScroll\', authoredMiddlescroll)\n');
 		buf.add('\tend\n');
 		buf.add('\tfor i = 0, 7 do\n');
