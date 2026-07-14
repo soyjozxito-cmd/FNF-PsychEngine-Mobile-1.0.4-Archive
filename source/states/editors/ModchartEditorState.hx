@@ -86,6 +86,8 @@ class ModchartEditorState extends MusicBeatState
 	var strumBaseY:Array<Float> = [];
 	var isDownscroll:Bool = false;
 	var middlescrollActive:Bool = false;
+	var showOpponentMid:Bool = false;
+	var opponentToggleBtn:FlxButton;
 
 	var uiBox:FlxSprite;
 	var tabsGroup:FlxTypedGroup<FlxSprite>;
@@ -141,6 +143,8 @@ class ModchartEditorState extends MusicBeatState
 	// ---------------------------------------------------------------
 	override function create()
 	{
+		overlayGroup = new FlxTypedGroup<FlxText>();
+
 		#if mobile
 		FlxG.mouse.visible = true;
 		#end
@@ -171,6 +175,8 @@ class ModchartEditorState extends MusicBeatState
 		selectPreset('ALL');
 		refreshFieldsFromModel();
 
+		add(overlayGroup);
+
 		for (g in [tabsGroup, archivoGroup, valoresGroup, pruebaGroup, configGroup, keyboardGroup])
 		{
 			for (m in g.members)
@@ -189,15 +195,31 @@ class ModchartEditorState extends MusicBeatState
 	 * siempre, vertical si la versión de Flixel lo permite). El label por
 	 * defecto de FlxButton queda muy chico y pegado a una esquina.
 	 */
-	function centerLabel(btn:FlxButton, ?fontSize:Int = 18)
+	var overlayPairs:Array<{btn:FlxButton, txt:FlxText}> = [];
+	var overlayGroup:FlxTypedGroup<FlxText>;
+
+	function centerLabel(btn:FlxButton, ?fontSize:Int = 15)
 	{
-		if (btn == null || btn.label == null)
+		if (btn == null)
 			return;
-		btn.label.setFormat(Paths.font('vcr.ttf'), fontSize, FlxColor.WHITE, 'center');
-		btn.label.fieldWidth = btn.width;
-		btn.label.updateHitbox();
-		btn.label.x = btn.x;
-		btn.label.y = btn.y + (btn.height - btn.label.height) / 2;
+		if (btn.label != null)
+			btn.label.visible = false;
+		var labelText = btn.label != null ? btn.label.text : '';
+		var pair = null;
+		for (p in overlayPairs)
+			if (p.btn == btn)
+				pair = p;
+		if (pair == null)
+		{
+			var txt = new FlxText(btn.x, btn.y, btn.width, labelText, fontSize);
+			overlayGroup.add(txt);
+			pair = {btn: btn, txt: txt};
+			overlayPairs.push(pair);
+		}
+		pair.txt.setFormat(Paths.font('vcr.ttf'), fontSize, FlxColor.WHITE, 'center');
+		pair.txt.text = labelText;
+		pair.txt.fieldWidth = btn.width;
+		pair.txt.updateHitbox();
 	}
 
 	function defaultAction():ModchartAction
@@ -262,8 +284,9 @@ class ModchartEditorState extends MusicBeatState
 		var arrowDirs:Array<String> = ['left', 'down', 'up', 'right'];
 		var mid:Bool = ClientPrefs.data.middleScroll;
 		middlescrollActive = mid;
-		// Con middlescroll, ambas líneas de strums se acercan al centro (como en el juego real).
-		var centerStartX:Float = (FlxG.width / 2) - (8 * 66 / 2) + 33;
+		// Con middlescroll, el juego centra las flechas del Player; el Opponent
+		// se superpone en el mismo lugar (por eso queda oculto por defecto).
+		var centerStartX:Float = (FlxG.width / 2) - (4 * 110 / 2) + 55;
 
 		for (i in 0...8)
 		{
@@ -272,7 +295,7 @@ class ModchartEditorState extends MusicBeatState
 			var targetX:Float;
 			var targetY:Float = 8;
 			if (mid)
-				targetX = centerStartX + (i * 66);
+				targetX = centerStartX + (lane * 110);
 			else
 				targetX = isPlayer ? 700 + (lane * 110) : 40 + (lane * 110);
 
@@ -283,10 +306,12 @@ class ModchartEditorState extends MusicBeatState
 			strum.frames = Paths.getSparrowAtlas('NOTE_assets');
 			strum.animation.addByPrefix('static', 'arrow' + arrowDirs[i % 4].toUpperCase());
 			strum.animation.play('static');
-			strum.setGraphicSize(Std.int(strum.width * 0.6));
+			strum.setGraphicSize(Std.int(strum.width * 0.55));
 			strum.updateHitbox();
 			strum.antialiasing = ClientPrefs.data.antialiasing;
 			strum.ID = i;
+			if (mid && !isPlayer)
+				strum.visible = showOpponentMid;
 			testStrums.add(strum);
 		}
 	}
@@ -306,7 +331,7 @@ class ModchartEditorState extends MusicBeatState
 			var tabBtn = new FlxButton(20 + (i * 160), 130, tabName, function() {
 				switchTab(tabName);
 			});
-			tabBtn.setGraphicSize(135, 44);
+			tabBtn.setGraphicSize(105, 34);
 			tabBtn.updateHitbox();
 			tabsGroup.add(tabBtn);
 		}
@@ -315,7 +340,7 @@ class ModchartEditorState extends MusicBeatState
 			stopTest();
 			MusicBeatState.switchState(new states.editors.MasterEditorMenu());
 		});
-		closeButton.setGraphicSize(44, 44);
+		closeButton.setGraphicSize(34, 34);
 		closeButton.updateHitbox();
 		closeButton.color = FlxColor.RED;
 		add(closeButton);
@@ -326,13 +351,13 @@ class ModchartEditorState extends MusicBeatState
 			uiToggleBtn.label.text = uiVisible ? 'Ocultar UI' : 'Mostrar UI';
 			applyUIVisibility();
 		});
-		uiToggleBtn.setGraphicSize(135, 44);
+		uiToggleBtn.setGraphicSize(105, 34);
 		uiToggleBtn.updateHitbox();
 		uiToggleBtn.color = FlxColor.ORANGE;
 		add(uiToggleBtn);
 
-		uiBox = new FlxSprite(30, 205).makeGraphic(FlxG.width - 60, FlxG.height - 235, FlxColor.BLACK);
-		uiBox.alpha = 0.62;
+		uiBox = new FlxSprite(60, 195).makeGraphic(FlxG.width - 120, FlxG.height - 225, FlxColor.BLACK);
+		uiBox.alpha = 0.45;
 		add(uiBox);
 	}
 
@@ -387,23 +412,23 @@ class ModchartEditorState extends MusicBeatState
 			pendingName.add(modchartName);
 			showKeyboard();
 		});
-		renameBtn.setGraphicSize(260, 50);
+		renameBtn.setGraphicSize(203, 39);
 		renameBtn.updateHitbox();
 		archivoGroup.add(renameBtn);
 
 		var newBtn = new FlxButton(30, 310, 'Nuevo', newModchart);
-		newBtn.setGraphicSize(180, 55);
+		newBtn.setGraphicSize(140, 43);
 		newBtn.updateHitbox();
 		archivoGroup.add(newBtn);
 
 		var saveBtn = new FlxButton(220, 310, 'Guardar datos', saveModchartData);
-		saveBtn.setGraphicSize(220, 55);
+		saveBtn.setGraphicSize(172, 43);
 		saveBtn.updateHitbox();
 		saveBtn.color = FlxColor.BLUE;
 		archivoGroup.add(saveBtn);
 
 		var exportBtn = new FlxButton(450, 310, 'EXPORTAR .lua', exportModchart);
-		exportBtn.setGraphicSize(240, 55);
+		exportBtn.setGraphicSize(187, 43);
 		exportBtn.updateHitbox();
 		exportBtn.color = FlxColor.LIME;
 		exportBtn.label.color = FlxColor.BLACK;
@@ -565,7 +590,7 @@ class ModchartEditorState extends MusicBeatState
 					var btn = new FlxButton(30, y, fname, function() {
 						loadModchartData(fname);
 					});
-					btn.setGraphicSize(420, 46);
+					btn.setGraphicSize(328, 36);
 					btn.updateHitbox();
 					centerLabel(btn, 18);
 					loadListGroup.add(btn);
@@ -602,7 +627,7 @@ class ModchartEditorState extends MusicBeatState
 					pendingName.add(ch);
 					updatePendingNameDisplay();
 				});
-				key.setGraphicSize(52, 52);
+				key.setGraphicSize(41, 41);
 				key.updateHitbox();
 				keyboardGroup.add(key);
 			}
@@ -612,7 +637,7 @@ class ModchartEditorState extends MusicBeatState
 			pendingName.add('_');
 			updatePendingNameDisplay();
 		});
-		spaceBtn.setGraphicSize(220, 50);
+		spaceBtn.setGraphicSize(172, 39);
 		spaceBtn.updateHitbox();
 		keyboardGroup.add(spaceBtn);
 
@@ -625,7 +650,7 @@ class ModchartEditorState extends MusicBeatState
 				updatePendingNameDisplay();
 			}
 		});
-		backBtn.setGraphicSize(180, 50);
+		backBtn.setGraphicSize(140, 39);
 		backBtn.updateHitbox();
 		backBtn.color = FlxColor.RED;
 		keyboardGroup.add(backBtn);
@@ -637,7 +662,7 @@ class ModchartEditorState extends MusicBeatState
 			hideKeyboard();
 			refreshFieldsFromModel();
 		});
-		doneBtn.setGraphicSize(160, 50);
+		doneBtn.setGraphicSize(125, 39);
 		doneBtn.updateHitbox();
 		doneBtn.color = FlxColor.LIME;
 		doneBtn.label.color = FlxColor.BLACK;
@@ -675,22 +700,22 @@ class ModchartEditorState extends MusicBeatState
 
 		// Selección rápida
 		var selAllBtn = new FlxButton(30, 215, 'Todos', function() selectPreset('ALL'));
-		selAllBtn.setGraphicSize(110, 46);
+		selAllBtn.setGraphicSize(86, 36);
 		selAllBtn.updateHitbox();
 		valoresGroup.add(selAllBtn);
 
 		var selDadBtn = new FlxButton(150, 215, 'DAD (Opp)', function() selectPreset('DAD'));
-		selDadBtn.setGraphicSize(140, 46);
+		selDadBtn.setGraphicSize(109, 36);
 		selDadBtn.updateHitbox();
 		valoresGroup.add(selDadBtn);
 
 		var selBfBtn = new FlxButton(300, 215, 'BF (Player)', function() selectPreset('BF'));
-		selBfBtn.setGraphicSize(140, 46);
+		selBfBtn.setGraphicSize(109, 36);
 		selBfBtn.updateHitbox();
 		valoresGroup.add(selBfBtn);
 
 		var resetBtn = new FlxButton(460, 215, 'Reset acción', resetSelected);
-		resetBtn.setGraphicSize(160, 46);
+		resetBtn.setGraphicSize(125, 36);
 		resetBtn.updateHitbox();
 		resetBtn.color = FlxColor.RED;
 		valoresGroup.add(resetBtn);
@@ -698,6 +723,21 @@ class ModchartEditorState extends MusicBeatState
 		txtSelection = new FlxText(640, 225, 380, '', 18);
 		txtSelection.setFormat(Paths.font('vcr.ttf'), 18, FlxColor.CYAN, 'left');
 		valoresGroup.add(txtSelection);
+
+		if (middlescrollActive)
+		{
+			opponentToggleBtn = new FlxButton(1030, 215, 'Mostrar Opponent', function() {
+				showOpponentMid = !showOpponentMid;
+				opponentToggleBtn.label.text = showOpponentMid ? 'Ocultar Opponent' : 'Mostrar Opponent';
+				centerLabel(opponentToggleBtn, 13);
+				for (i in 0...4)
+					testStrums.members[i].visible = showOpponentMid;
+			});
+			opponentToggleBtn.setGraphicSize(140, 31);
+			opponentToggleBtn.updateHitbox();
+			opponentToggleBtn.color = FlxColor.PURPLE;
+			valoresGroup.add(opponentToggleBtn);
+		}
 
 		// Navegación de acciones
 		var prevBtn = new FlxButton(30, 270, '< Anterior', function() {
@@ -707,7 +747,7 @@ class ModchartEditorState extends MusicBeatState
 				refreshFieldsFromModel();
 			}
 		});
-		prevBtn.setGraphicSize(150, 46);
+		prevBtn.setGraphicSize(117, 36);
 		prevBtn.updateHitbox();
 		valoresGroup.add(prevBtn);
 
@@ -721,19 +761,19 @@ class ModchartEditorState extends MusicBeatState
 				refreshFieldsFromModel();
 			}
 		});
-		nextBtn.setGraphicSize(150, 46);
+		nextBtn.setGraphicSize(117, 36);
 		nextBtn.updateHitbox();
 		valoresGroup.add(nextBtn);
 
 		var addActionBtn = new FlxButton(560, 270, '+ Nueva acción', addAction);
-		addActionBtn.setGraphicSize(180, 46);
+		addActionBtn.setGraphicSize(140, 36);
 		addActionBtn.updateHitbox();
 		addActionBtn.color = FlxColor.LIME;
 		addActionBtn.label.color = FlxColor.BLACK;
 		valoresGroup.add(addActionBtn);
 
 		var delActionBtn = new FlxButton(750, 270, 'Eliminar acción', removeAction);
-		delActionBtn.setGraphicSize(180, 46);
+		delActionBtn.setGraphicSize(140, 36);
 		delActionBtn.updateHitbox();
 		delActionBtn.color = FlxColor.RED;
 		valoresGroup.add(delActionBtn);
@@ -742,13 +782,13 @@ class ModchartEditorState extends MusicBeatState
 			stepCoarse = !stepCoarse;
 			txtStepMode.text = 'Paso: ' + (stepCoarse ? 'grueso' : 'fino');
 		});
-		stepBtn.setGraphicSize(150, 46);
+		stepBtn.setGraphicSize(117, 36);
 		stepBtn.updateHitbox();
 		valoresGroup.add(stepBtn);
 		txtStepMode = stepBtn.label;
 
 		var returnBtn = new FlxButton(30, 320, '↩ Volver al inicio (nueva acción)', addReturnAction);
-		returnBtn.setGraphicSize(320, 40);
+		returnBtn.setGraphicSize(250, 31);
 		returnBtn.updateHitbox();
 		returnBtn.color = FlxColor.CYAN;
 		returnBtn.label.color = FlxColor.BLACK;
@@ -766,19 +806,19 @@ class ModchartEditorState extends MusicBeatState
 		txtSpin = addNumField(valoresGroup, 630, 458, 'Giro °/seg', function() return posStep() * 9, function(d) nudge('spinSpeed', d));
 
 		var unitBtn = new FlxButton(30, 545, 'Unidad: segundos', function() cycleDurationUnit(1));
-		unitBtn.setGraphicSize(210, 46);
+		unitBtn.setGraphicSize(164, 36);
 		unitBtn.updateHitbox();
 		valoresGroup.add(unitBtn);
 		txtDurationUnit = unitBtn.label;
 
 		var easeBtn = new FlxButton(250, 545, 'Ease: linear', function() cycleEase(1));
-		easeBtn.setGraphicSize(190, 46);
+		easeBtn.setGraphicSize(148, 36);
 		easeBtn.updateHitbox();
 		valoresGroup.add(easeBtn);
 		txtEase = easeBtn.label;
 
 		var easeTypeBtn = new FlxButton(470, 545, 'Tipo: InOut', function() cycleEaseType(1));
-		easeTypeBtn.setGraphicSize(160, 46);
+		easeTypeBtn.setGraphicSize(125, 36);
 		easeTypeBtn.updateHitbox();
 		valoresGroup.add(easeTypeBtn);
 		txtEaseType = easeTypeBtn.label;
@@ -809,7 +849,7 @@ class ModchartEditorState extends MusicBeatState
 		group.add(lbl);
 
 		var minus = new FlxButton(x, y + 22, '-', function() applyDelta(-stepFn()));
-		minus.setGraphicSize(44, 44);
+		minus.setGraphicSize(34, 34);
 		minus.updateHitbox();
 		group.add(minus);
 
@@ -819,7 +859,7 @@ class ModchartEditorState extends MusicBeatState
 		group.add(valTxt);
 
 		var plus = new FlxButton(x + 140, y + 22, '+', function() applyDelta(stepFn()));
-		plus.setGraphicSize(44, 44);
+		plus.setGraphicSize(34, 34);
 		plus.updateHitbox();
 		group.add(plus);
 
@@ -1034,14 +1074,14 @@ class ModchartEditorState extends MusicBeatState
 		pruebaGroup.add(helpTxt);
 
 		var playBtn = new FlxButton(30, 300, 'Reproducir', startTest);
-		playBtn.setGraphicSize(220, 60);
+		playBtn.setGraphicSize(172, 47);
 		playBtn.updateHitbox();
 		playBtn.color = FlxColor.LIME;
 		playBtn.label.color = FlxColor.BLACK;
 		pruebaGroup.add(playBtn);
 
 		var stopBtn = new FlxButton(280, 300, 'Detener', stopTest);
-		stopBtn.setGraphicSize(220, 60);
+		stopBtn.setGraphicSize(172, 47);
 		stopBtn.updateHitbox();
 		stopBtn.color = FlxColor.RED;
 		pruebaGroup.add(stopBtn);
@@ -1163,7 +1203,7 @@ class ModchartEditorState extends MusicBeatState
 			camZooming = !camZooming;
 			camZoomBtn.label.text = camZooming ? 'Activado' : 'Desactivado';
 		});
-		camZoomBtn.setGraphicSize(200, 50);
+		camZoomBtn.setGraphicSize(156, 39);
 		camZoomBtn.updateHitbox();
 		configGroup.add(camZoomBtn);
 
@@ -1173,7 +1213,7 @@ class ModchartEditorState extends MusicBeatState
 			scrollInvertY = !scrollInvertY;
 			scrollInvertBtn.label.text = scrollInvertY ? 'Activado' : 'Desactivado';
 		});
-		scrollInvertBtn.setGraphicSize(200, 50);
+		scrollInvertBtn.setGraphicSize(156, 39);
 		scrollInvertBtn.updateHitbox();
 		configGroup.add(scrollInvertBtn);
 
@@ -1184,7 +1224,7 @@ class ModchartEditorState extends MusicBeatState
 			loopBtn.label.text = loopActions ? 'Activado (loop)' : 'Desactivado (se detiene)';
 			centerLabel(loopBtn, 18);
 		});
-		loopBtn.setGraphicSize(320, 50);
+		loopBtn.setGraphicSize(250, 39);
 		loopBtn.updateHitbox();
 		configGroup.add(loopBtn);
 
@@ -1201,10 +1241,17 @@ class ModchartEditorState extends MusicBeatState
 	{
 		super.update(elapsed);
 
+		for (p in overlayPairs)
+		{
+			p.txt.visible = p.btn.visible && p.btn.exists && p.btn.alive;
+			p.txt.x = p.btn.x;
+			p.txt.y = p.btn.y + (p.btn.height - p.txt.height) / 2;
+		}
+
 		if (!keyboardVisible)
 		{
 			// Mouse (para probar en PC)
-			if (FlxG.mouse.justPressed && FlxG.mouse.y < STRUM_ROW_LIMIT_Y)
+			if (FlxG.mouse.justPressed && (!uiVisible || FlxG.mouse.y < STRUM_ROW_LIMIT_Y))
 			{
 				for (i in 0...8)
 				{
@@ -1224,7 +1271,7 @@ class ModchartEditorState extends MusicBeatState
 			#if FLX_TOUCH
 			for (touch in FlxG.touches.list)
 			{
-				if (touch.justPressed && touch.y < STRUM_ROW_LIMIT_Y)
+				if (touch.justPressed && (!uiVisible || touch.y < STRUM_ROW_LIMIT_Y))
 				{
 					for (i in 0...8)
 					{
