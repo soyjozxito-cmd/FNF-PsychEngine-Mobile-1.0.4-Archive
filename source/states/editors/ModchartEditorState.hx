@@ -284,20 +284,22 @@ class ModchartEditorState extends MusicBeatState
 		var arrowDirs:Array<String> = ['left', 'down', 'up', 'right'];
 		var mid:Bool = ClientPrefs.data.middleScroll;
 		middlescrollActive = mid;
-		// Con middlescroll, el juego centra las flechas del Player; el Opponent
-		// se superpone en el mismo lugar (por eso queda oculto por defecto).
-		var centerStartX:Float = (FlxG.width / 2) - (4 * 110 / 2) + 55;
+
+		// Posiciones X reales que usa el juego (resolución interna 1280x720):
+		// Opponent: 92, 204, 316, 428 — Player: 732, 844, 956, 1068
+		// Con middlescroll, el juego corre ambas líneas -320px (STRUM_X_MIDDLESCROLL - STRUM_X).
+		var opponentX:Array<Float> = [92, 204, 316, 428];
+		var playerX:Array<Float> = [732, 844, 956, 1068];
+		var scale:Float = FlxG.width / 1280;
+		var midShift:Float = mid ? -320 * scale : 0;
 
 		for (i in 0...8)
 		{
 			var isPlayer:Bool = (i >= 4);
 			var lane:Int = isPlayer ? (i - 4) : i;
-			var targetX:Float;
+			var rawX:Float = isPlayer ? playerX[lane] : opponentX[lane];
+			var targetX:Float = (rawX * scale) + midShift;
 			var targetY:Float = 8;
-			if (mid)
-				targetX = centerStartX + (lane * 110);
-			else
-				targetX = isPlayer ? 700 + (lane * 110) : 40 + (lane * 110);
 
 			strumBaseX.push(targetX);
 			strumBaseY.push(targetY);
