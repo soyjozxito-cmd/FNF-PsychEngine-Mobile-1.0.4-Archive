@@ -182,7 +182,7 @@ class ModchartEditorState extends MusicBeatState
 			for (m in g.members)
 			{
 				if (Std.isOfType(m, FlxButton))
-					centerLabel(cast m);
+					centerLabel(cast m, 15, g);
 			}
 		}
 		centerLabel(uiToggleBtn);
@@ -195,10 +195,10 @@ class ModchartEditorState extends MusicBeatState
 	 * siempre, vertical si la versión de Flixel lo permite). El label por
 	 * defecto de FlxButton queda muy chico y pegado a una esquina.
 	 */
-	var overlayPairs:Array<{btn:FlxButton, txt:FlxText}> = [];
+	var overlayPairs:Array<{btn:FlxButton, txt:FlxText, group:FlxTypedGroup<FlxSprite>}> = [];
 	var overlayGroup:FlxTypedGroup<FlxText>;
 
-	function centerLabel(btn:FlxButton, ?fontSize:Int = 15)
+	function centerLabel(btn:FlxButton, ?fontSize:Int = 15, ?group:FlxTypedGroup<FlxSprite> = null)
 	{
 		if (btn == null)
 			return;
@@ -213,8 +213,12 @@ class ModchartEditorState extends MusicBeatState
 		{
 			var txt = new FlxText(btn.x, btn.y, btn.width, labelText, fontSize);
 			overlayGroup.add(txt);
-			pair = {btn: btn, txt: txt};
+			pair = {btn: btn, txt: txt, group: group};
 			overlayPairs.push(pair);
+		}
+		else if (group != null)
+		{
+			pair.group = group;
 		}
 		pair.txt.setFormat(Paths.font('vcr.ttf'), fontSize, FlxColor.WHITE, 'center');
 		pair.txt.text = labelText;
@@ -594,7 +598,7 @@ class ModchartEditorState extends MusicBeatState
 					});
 					btn.setGraphicSize(328, 36);
 					btn.updateHitbox();
-					centerLabel(btn, 18);
+					centerLabel(btn, 18, loadListGroup);
 					loadListGroup.add(btn);
 					y += 54;
 					if (y > FlxG.height - 60)
@@ -942,7 +946,8 @@ class ModchartEditorState extends MusicBeatState
 
 	function referenceAction():ModchartAction
 	{
-		return strumActions[refStrumId()][currentActionIndex];
+		var id = refStrumId();
+		return strumActions[id][safeIdx(id)];
 	}
 
 	function refStrumId():Int
@@ -1245,7 +1250,8 @@ class ModchartEditorState extends MusicBeatState
 
 		for (p in overlayPairs)
 		{
-			p.txt.visible = p.btn.visible && p.btn.exists && p.btn.alive;
+			var groupOk = (p.group == null) || (p.group.visible && p.group.exists);
+			p.txt.visible = p.btn.visible && p.btn.exists && p.btn.alive && groupOk;
 			p.txt.x = p.btn.x;
 			p.txt.y = p.btn.y + (p.btn.height - p.txt.height) / 2;
 		}
