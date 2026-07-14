@@ -43,6 +43,7 @@ typedef ModchartAction = {
 	var durationUnit:String; // 'seconds' | 'beats' | 'steps'
 	var ease:String; // linear, sine, quad, cube, quart, quint, expo, circ, back, elastic, bounce, smoothStep, smootherStep
 	var easeType:String; // 'In' | 'Out' | 'InOut'
+	var spinSpeed:Float; // grados por segundo de giro CONTINUO mientras esta acción está activa (0 = no gira)
 }
 
 class ModchartEditorState extends MusicBeatState
@@ -53,6 +54,7 @@ class ModchartEditorState extends MusicBeatState
 	static var EASES:Array<String> = ['linear', 'sine', 'quad', 'cube', 'quart', 'quint', 'expo', 'circ', 'back', 'elastic', 'bounce', 'smoothStep', 'smootherStep'];
 	static var EASE_TYPES:Array<String> = ['In', 'Out', 'InOut'];
 	static var DURATION_UNITS:Array<String> = ['seconds', 'beats', 'steps'];
+	static inline var STRUM_ROW_LIMIT_Y:Float = 130;
 
 	static var KB_ROWS:Array<String> = ['1234567890', 'QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
 
@@ -109,6 +111,7 @@ class ModchartEditorState extends MusicBeatState
 	var txtDirection:FlxText;
 	var txtDuration:FlxText;
 	var txtDelay:FlxText;
+	var txtSpin:FlxText;
 	var txtDurationUnit:FlxText;
 	var txtEase:FlxText;
 	var txtEaseType:FlxText;
@@ -199,15 +202,53 @@ class ModchartEditorState extends MusicBeatState
 
 	function defaultAction():ModchartAction
 	{
-		return {x: 0, y: 0, angle: 0, alpha: 1, direction: 0, duration: 0, delay: 0, durationUnit: 'seconds', ease: 'linear', easeType: 'InOut'};
+		return {x: 0, y: 0, angle: 0, alpha: 1, direction: 0, duration: 0, delay: 0, durationUnit: 'seconds', ease: 'linear', easeType: 'InOut', spinSpeed: 0};
 	}
 
 	function copyAction(a:ModchartAction):ModchartAction
 	{
 		return {
 			x: a.x, y: a.y, angle: a.angle, alpha: a.alpha, direction: a.direction,
-			duration: a.duration, delay: a.delay, durationUnit: a.durationUnit, ease: a.ease, easeType: a.easeType
+			duration: a.duration, delay: a.delay, durationUnit: a.durationUnit, ease: a.ease, easeType: a.easeType,
+			spinSpeed: a.spinSpeed
 		};
+	}
+
+	/** Reconstruye las acciones cargadas desde un JSON viejo (o nuevo),
+	 * rellenando con valores por defecto cualquier campo que no exista. */
+	function normalizeActions(raw:Dynamic):Array<Array<ModchartAction>>
+	{
+		var result:Array<Array<ModchartAction>> = [];
+		for (i in 0...8)
+		{
+			var arr:Array<ModchartAction> = [];
+			var rawArr:Array<Dynamic> = raw[i];
+			if (rawArr == null)
+			{
+				arr.push(defaultAction());
+			}
+			else
+			{
+				for (rawA in rawArr)
+				{
+					arr.push({
+						x: rawA.x != null ? rawA.x : 0,
+						y: rawA.y != null ? rawA.y : 0,
+						angle: rawA.angle != null ? rawA.angle : 0,
+						alpha: rawA.alpha != null ? rawA.alpha : 1,
+						direction: rawA.direction != null ? rawA.direction : 0,
+						duration: rawA.duration != null ? rawA.duration : 0,
+						delay: rawA.delay != null ? rawA.delay : 0,
+						durationUnit: rawA.durationUnit != null ? rawA.durationUnit : 'seconds',
+						ease: rawA.ease != null ? rawA.ease : 'linear',
+						easeType: rawA.easeType != null ? rawA.easeType : 'InOut',
+						spinSpeed: rawA.spinSpeed != null ? rawA.spinSpeed : 0
+					});
+				}
+			}
+			result.push(arr);
+		}
+		return result;
 	}
 
 	// ---------------------------------------------------------------
@@ -242,7 +283,7 @@ class ModchartEditorState extends MusicBeatState
 			strum.frames = Paths.getSparrowAtlas('NOTE_assets');
 			strum.animation.addByPrefix('static', 'arrow' + arrowDirs[i % 4].toUpperCase());
 			strum.animation.play('static');
-			strum.setGraphicSize(Std.int(strum.width * 0.7));
+			strum.setGraphicSize(Std.int(strum.width * 0.6));
 			strum.updateHitbox();
 			strum.antialiasing = ClientPrefs.data.antialiasing;
 			strum.ID = i;
@@ -265,7 +306,7 @@ class ModchartEditorState extends MusicBeatState
 			var tabBtn = new FlxButton(20 + (i * 160), 130, tabName, function() {
 				switchTab(tabName);
 			});
-			tabBtn.setGraphicSize(150, 56);
+			tabBtn.setGraphicSize(135, 44);
 			tabBtn.updateHitbox();
 			tabsGroup.add(tabBtn);
 		}
@@ -274,7 +315,7 @@ class ModchartEditorState extends MusicBeatState
 			stopTest();
 			MusicBeatState.switchState(new states.editors.MasterEditorMenu());
 		});
-		closeButton.setGraphicSize(56, 56);
+		closeButton.setGraphicSize(44, 44);
 		closeButton.updateHitbox();
 		closeButton.color = FlxColor.RED;
 		add(closeButton);
@@ -285,7 +326,7 @@ class ModchartEditorState extends MusicBeatState
 			uiToggleBtn.label.text = uiVisible ? 'Ocultar UI' : 'Mostrar UI';
 			applyUIVisibility();
 		});
-		uiToggleBtn.setGraphicSize(150, 56);
+		uiToggleBtn.setGraphicSize(135, 44);
 		uiToggleBtn.updateHitbox();
 		uiToggleBtn.color = FlxColor.ORANGE;
 		add(uiToggleBtn);
@@ -489,7 +530,7 @@ class ModchartEditorState extends MusicBeatState
 			camZooming = data.camZooming;
 			scrollInvertY = data.scrollInvertY;
 			loopActions = (data.loopActions == null) ? true : data.loopActions;
-			strumActions = data.actions;
+			strumActions = normalizeActions(data.actions);
 			currentActionIndex = 0;
 			selectPreset('ALL');
 			refreshFieldsFromModel();
@@ -674,7 +715,7 @@ class ModchartEditorState extends MusicBeatState
 		valoresGroup.add(txtActionInfo);
 
 		var nextBtn = new FlxButton(400, 270, 'Siguiente >', function() {
-			if (currentActionIndex < strumActions[0].length - 1)
+			if (currentActionIndex < strumActions[refStrumId()].length - 1)
 			{
 				currentActionIndex++;
 				refreshFieldsFromModel();
@@ -706,35 +747,43 @@ class ModchartEditorState extends MusicBeatState
 		valoresGroup.add(stepBtn);
 		txtStepMode = stepBtn.label;
 
+		var returnBtn = new FlxButton(30, 320, '↩ Volver al inicio (nueva acción)', addReturnAction);
+		returnBtn.setGraphicSize(320, 40);
+		returnBtn.updateHitbox();
+		returnBtn.color = FlxColor.CYAN;
+		returnBtn.label.color = FlxColor.BLACK;
+		valoresGroup.add(returnBtn);
+
 		// Campos numéricos: X, Y, Angle, Alpha, Direction (fila 1) / Duration, Delay (fila 2)
-		txtX = addNumField(valoresGroup, 30, 340, 'X', function() return posStep(), function(d) nudge('x', d));
-		txtY = addNumField(valoresGroup, 230, 340, 'Y', function() return posStep(), function(d) nudge('y', d));
-		txtAngle = addNumField(valoresGroup, 430, 340, 'Ángulo', function() return posStep(), function(d) nudge('angle', d));
-		txtAlpha = addNumField(valoresGroup, 630, 340, 'Alpha', function() return alphaStep(), function(d) nudge('alpha', d));
-		txtDirection = addNumField(valoresGroup, 830, 340, 'Dirección', function() return posStep(), function(d) nudge('direction', d));
+		txtX = addNumField(valoresGroup, 30, 378, 'X', function() return posStep(), function(d) nudge('x', d));
+		txtY = addNumField(valoresGroup, 230, 378, 'Y', function() return posStep(), function(d) nudge('y', d));
+		txtAngle = addNumField(valoresGroup, 430, 378, 'Ángulo', function() return posStep(), function(d) nudge('angle', d));
+		txtAlpha = addNumField(valoresGroup, 630, 378, 'Alpha', function() return alphaStep(), function(d) nudge('alpha', d));
+		txtDirection = addNumField(valoresGroup, 830, 378, 'Dirección', function() return posStep(), function(d) nudge('direction', d));
 
-		txtDuration = addNumField(valoresGroup, 30, 420, 'Duración', function() return timeStep(), function(d) nudge('duration', d));
-		txtDelay = addNumField(valoresGroup, 230, 420, 'Delay', function() return timeStep(), function(d) nudge('delay', d));
+		txtDuration = addNumField(valoresGroup, 30, 458, 'Duración', function() return timeStep(), function(d) nudge('duration', d));
+		txtDelay = addNumField(valoresGroup, 230, 458, 'Delay', function() return timeStep(), function(d) nudge('delay', d));
+		txtSpin = addNumField(valoresGroup, 630, 458, 'Giro °/seg', function() return posStep() * 9, function(d) nudge('spinSpeed', d));
 
-		var unitBtn = new FlxButton(430, 440, 'Unidad: segundos', function() cycleDurationUnit(1));
+		var unitBtn = new FlxButton(30, 545, 'Unidad: segundos', function() cycleDurationUnit(1));
 		unitBtn.setGraphicSize(210, 46);
 		unitBtn.updateHitbox();
 		valoresGroup.add(unitBtn);
 		txtDurationUnit = unitBtn.label;
 
-		var easeBtn = new FlxButton(650, 440, 'Ease: linear', function() cycleEase(1));
+		var easeBtn = new FlxButton(250, 545, 'Ease: linear', function() cycleEase(1));
 		easeBtn.setGraphicSize(190, 46);
 		easeBtn.updateHitbox();
 		valoresGroup.add(easeBtn);
 		txtEase = easeBtn.label;
 
-		var easeTypeBtn = new FlxButton(850, 440, 'Tipo: InOut', function() cycleEaseType(1));
+		var easeTypeBtn = new FlxButton(470, 545, 'Tipo: InOut', function() cycleEaseType(1));
 		easeTypeBtn.setGraphicSize(160, 46);
 		easeTypeBtn.updateHitbox();
 		valoresGroup.add(easeTypeBtn);
 		txtEaseType = easeTypeBtn.label;
 
-		var helpTxt = new FlxText(30, 528, FlxG.width - 60, 'Tocá y arrastrá un strum para seleccionarlo individualmente. Los cambios de esta pestaña se aplican a todos los strums seleccionados, en la acción actual.', 17);
+		var helpTxt = new FlxText(30, 605, FlxG.width - 60, 'Tocá y arrastrá un strum para seleccionarlo individualmente. Los cambios de esta pestaña se aplican a todos los strums seleccionados, en la acción actual.', 17);
 		helpTxt.setFormat(Paths.font('vcr.ttf'), 17, FlxColor.GRAY, 'left');
 		helpTxt.color = FlxColor.GRAY;
 		valoresGroup.add(helpTxt);
@@ -826,7 +875,7 @@ class ModchartEditorState extends MusicBeatState
 	{
 		for (i in selectedStrums)
 		{
-			var a = strumActions[i][currentActionIndex];
+			var a = strumActions[i][safeIdx(i)];
 			switch (prop)
 			{
 				case 'x': a.x += delta;
@@ -836,6 +885,7 @@ class ModchartEditorState extends MusicBeatState
 				case 'direction': a.direction += delta;
 				case 'duration': a.duration = Math.max(0, a.duration + delta);
 				case 'delay': a.delay = Math.max(0, a.delay + delta);
+				case 'spinSpeed': a.spinSpeed += delta;
 			}
 		}
 		refreshFieldsFromModel();
@@ -844,14 +894,26 @@ class ModchartEditorState extends MusicBeatState
 	function resetSelected()
 	{
 		for (i in selectedStrums)
-			strumActions[i][currentActionIndex] = defaultAction();
+			strumActions[i][safeIdx(i)] = defaultAction();
 		refreshFieldsFromModel();
 	}
 
 	function referenceAction():ModchartAction
 	{
-		var id = selectedStrums.length > 0 ? selectedStrums[0] : 0;
-		return strumActions[id][currentActionIndex];
+		return strumActions[refStrumId()][currentActionIndex];
+	}
+
+	function refStrumId():Int
+	{
+		return selectedStrums.length > 0 ? selectedStrums[0] : 0;
+	}
+
+	/** Índice de acción seguro para un strum en particular (puede tener menos
+	 * acciones que el strum de referencia, ahora que cada uno puede tener su
+	 * propia cantidad de pasos). */
+	function safeIdx(i:Int):Int
+	{
+		return Std.int(Math.min(currentActionIndex, strumActions[i].length - 1));
 	}
 
 	function cycleEase(dir:Int)
@@ -863,7 +925,7 @@ class ModchartEditorState extends MusicBeatState
 		idx = (idx + dir + EASES.length) % EASES.length;
 		var newEase = EASES[idx];
 		for (i in selectedStrums)
-			strumActions[i][currentActionIndex].ease = newEase;
+			strumActions[i][safeIdx(i)].ease = newEase;
 		refreshFieldsFromModel();
 	}
 
@@ -876,7 +938,7 @@ class ModchartEditorState extends MusicBeatState
 		idx = (idx + dir + EASE_TYPES.length) % EASE_TYPES.length;
 		var newType = EASE_TYPES[idx];
 		for (i in selectedStrums)
-			strumActions[i][currentActionIndex].easeType = newType;
+			strumActions[i][safeIdx(i)].easeType = newType;
 		refreshFieldsFromModel();
 	}
 
@@ -889,32 +951,48 @@ class ModchartEditorState extends MusicBeatState
 		idx = (idx + dir + DURATION_UNITS.length) % DURATION_UNITS.length;
 		var newUnit = DURATION_UNITS[idx];
 		for (i in selectedStrums)
-			strumActions[i][currentActionIndex].durationUnit = newUnit;
+			strumActions[i][safeIdx(i)].durationUnit = newUnit;
 		refreshFieldsFromModel();
 	}
 
 	function addAction()
 	{
-		for (i in 0...8)
+		for (i in selectedStrums)
 		{
-			var copy = copyAction(strumActions[i][currentActionIndex]);
-			strumActions[i].insert(currentActionIndex + 1, copy);
+			var copy = copyAction(strumActions[i][currentActionIndex < strumActions[i].length ? currentActionIndex : strumActions[i].length - 1]);
+			var insertAt = Std.int(Math.min(currentActionIndex + 1, strumActions[i].length));
+			strumActions[i].insert(insertAt, copy);
 		}
 		currentActionIndex++;
 		refreshFieldsFromModel();
 	}
 
+	/** Agrega una acción igual a los valores por defecto (0,0,0,alpha 1) al final,
+	 * para que la flecha vuelva sola a su posición original. */
+	function addReturnAction()
+	{
+		for (i in selectedStrums)
+			strumActions[i].push(defaultAction());
+		currentActionIndex = strumActions[refStrumId()].length - 1;
+		refreshFieldsFromModel();
+		setStatus('Se agregó una acción de "vuelta al inicio" para los strums seleccionados.');
+	}
+
 	function removeAction()
 	{
-		if (strumActions[0].length <= 1)
+		var refLen = strumActions[refStrumId()].length;
+		if (refLen <= 1)
 		{
 			setStatus('No se puede eliminar la única acción.');
 			return;
 		}
-		for (i in 0...8)
-			strumActions[i].splice(currentActionIndex, 1);
-		if (currentActionIndex >= strumActions[0].length)
-			currentActionIndex = strumActions[0].length - 1;
+		for (i in selectedStrums)
+		{
+			if (currentActionIndex < strumActions[i].length)
+				strumActions[i].splice(currentActionIndex, 1);
+		}
+		if (currentActionIndex >= strumActions[refStrumId()].length)
+			currentActionIndex = strumActions[refStrumId()].length - 1;
 		refreshFieldsFromModel();
 	}
 
@@ -930,12 +1008,13 @@ class ModchartEditorState extends MusicBeatState
 			txtDirection.text = Std.string(Math.round(a.direction));
 			txtDuration.text = Std.string(Math.round(a.duration * 100) / 100);
 			txtDelay.text = Std.string(Math.round(a.delay * 100) / 100);
+			txtSpin.text = Std.string(Math.round(a.spinSpeed));
 			txtDurationUnit.text = 'Unidad: ' + a.durationUnit;
 			txtEase.text = 'Ease: ' + a.ease;
 			txtEaseType.text = 'Tipo: ' + a.easeType;
 		}
 		if (txtActionInfo != null)
-			txtActionInfo.text = 'Acción ' + (currentActionIndex + 1) + '/' + strumActions[0].length;
+			txtActionInfo.text = 'Acción ' + (currentActionIndex + 1) + '/' + strumActions[refStrumId()].length;
 		if (txtSelection != null)
 			txtSelection.text = 'Selección: ' + selectionMode + ' (' + selectedStrums.length + ' strums)';
 		if (txtModName != null && !keyboardVisible)
@@ -1042,7 +1121,7 @@ class ModchartEditorState extends MusicBeatState
 		testTweens = [];
 		for (i in 0...8)
 		{
-			var a = strumActions[i][currentActionIndex];
+			var a = strumActions[i][safeIdx(i)];
 			var spr = testStrums.members[i];
 			spr.x = strumBaseX[i] + a.x;
 			spr.y = strumBaseY[i] + a.y;
@@ -1125,7 +1204,7 @@ class ModchartEditorState extends MusicBeatState
 		if (!keyboardVisible)
 		{
 			// Mouse (para probar en PC)
-			if (FlxG.mouse.justPressed)
+			if (FlxG.mouse.justPressed && FlxG.mouse.y < STRUM_ROW_LIMIT_Y)
 			{
 				for (i in 0...8)
 				{
@@ -1145,7 +1224,7 @@ class ModchartEditorState extends MusicBeatState
 			#if FLX_TOUCH
 			for (touch in FlxG.touches.list)
 			{
-				if (touch.justPressed)
+				if (touch.justPressed && touch.y < STRUM_ROW_LIMIT_Y)
 				{
 					for (i in 0...8)
 					{
@@ -1180,7 +1259,7 @@ class ModchartEditorState extends MusicBeatState
 				if (dragging)
 					continue;
 				#end
-				var a = strumActions[i][currentActionIndex];
+				var a = strumActions[i][safeIdx(i)];
 				var spr = testStrums.members[i];
 				spr.x = strumBaseX[i] + a.x;
 				spr.y = strumBaseY[i] + a.y;
@@ -1192,7 +1271,7 @@ class ModchartEditorState extends MusicBeatState
 
 	function dragStrumTo(i:Int, mx:Float, my:Float)
 	{
-		var a = strumActions[i][currentActionIndex];
+		var a = strumActions[i][safeIdx(i)];
 		a.x = mx - strumBaseX[i];
 		a.y = my - strumBaseY[i];
 		var spr = testStrums.members[i];
@@ -1248,8 +1327,10 @@ class ModchartEditorState extends MusicBeatState
 		buf.add('}\n\n');
 
 		buf.add('local scrollInvertY = ' + (scrollInvertY ? 'true' : 'false') + '\n');
-		buf.add('local baseX, baseY = {}, {}\n');
+		buf.add('local baseX, baseY, baseAngle, baseDirection = {}, {}, {}, {}\n');
 		buf.add('local curStepIndex = {}\n');
+		buf.add('local activeSpinSpeed = {}\n');
+		buf.add('for i = 0, 7 do activeSpinSpeed[i] = 0 end\n');
 		buf.add('for i = 0, 7 do curStepIndex[i] = 0 end\n\n');
 
 		buf.add('local function unitMultiplier(unit)\n');
@@ -1265,20 +1346,26 @@ class ModchartEditorState extends MusicBeatState
 		buf.add('\tif scrollInvertY and downscroll then yOff = -yOff end\n');
 		buf.add('\tlocal targetX = baseX[i] + step.x\n');
 		buf.add('\tlocal targetY = baseY[i] + yOff\n');
+		buf.add('\tlocal targetAngle = baseAngle[i] + step.angle\n');
+		buf.add('\tlocal targetDirection = baseDirection[i] + step.direction\n');
 		buf.add('\tif step.duration and step.duration > 0 then\n');
 		buf.add('\t\tlocal dur = step.duration * unitMultiplier(step.durationUnit) / playbackRate\n');
 		buf.add('\t\tlocal tag = \'modchart_' + safeName + '_strum\'..i..\'_step\'..stepIndex\n');
 		buf.add('\t\tnoteTweenX(tag..\'_x\', i, targetX, dur, step.ease)\n');
 		buf.add('\t\tnoteTweenY(tag..\'_y\', i, targetY, dur, step.ease)\n');
-		buf.add('\t\tnoteTweenAngle(tag..\'_a\', i, step.angle, dur, step.ease)\n');
+		buf.add('\t\tif not step.spinSpeed or step.spinSpeed == 0 then\n');
+		buf.add('\t\t\tnoteTweenAngle(tag..\'_a\', i, targetAngle, dur, step.ease)\n');
+		buf.add('\t\tend\n');
 		buf.add('\t\tnoteTweenAlpha(tag..\'_al\', i, step.alpha, dur, step.ease)\n');
-		buf.add('\t\tnoteTweenDirection(tag..\'_d\', i, step.direction, dur, step.ease)\n');
+		buf.add('\t\tnoteTweenDirection(tag..\'_d\', i, targetDirection, dur, step.ease)\n');
 		buf.add('\telse\n');
 		buf.add('\t\tsetPropertyFromGroup(\'strumLineNotes\', i, \'x\', targetX)\n');
 		buf.add('\t\tsetPropertyFromGroup(\'strumLineNotes\', i, \'y\', targetY)\n');
-		buf.add('\t\tsetPropertyFromGroup(\'strumLineNotes\', i, \'angle\', step.angle)\n');
+		buf.add('\t\tif not step.spinSpeed or step.spinSpeed == 0 then\n');
+		buf.add('\t\t\tsetPropertyFromGroup(\'strumLineNotes\', i, \'angle\', targetAngle)\n');
+		buf.add('\t\tend\n');
 		buf.add('\t\tsetPropertyFromGroup(\'strumLineNotes\', i, \'alpha\', step.alpha)\n');
-		buf.add('\t\tsetPropertyFromGroup(\'strumLineNotes\', i, \'direction\', step.direction)\n');
+		buf.add('\t\tsetPropertyFromGroup(\'strumLineNotes\', i, \'direction\', targetDirection)\n');
 		buf.add('\t\tif #modchartSteps[i] > 1 then advanceModchartStep(i) end\n');
 		buf.add('\tend\n');
 		buf.add('end\n\n');
@@ -1287,6 +1374,7 @@ class ModchartEditorState extends MusicBeatState
 		buf.add('\tcurStepIndex[i] = stepIndex\n');
 		buf.add('\tlocal step = modchartSteps[i][stepIndex + 1]\n');
 		buf.add('\tif not step then return end\n');
+		buf.add('\tactiveSpinSpeed[i] = step.spinSpeed or 0\n');
 		buf.add('\tif step.delay and step.delay > 0 then\n');
 		buf.add('\t\tlocal dur = step.delay * unitMultiplier(step.durationUnit) / playbackRate\n');
 		buf.add('\t\truntimerTag_' + safeName + '(i, stepIndex, dur)\n');
@@ -1321,6 +1409,8 @@ class ModchartEditorState extends MusicBeatState
 		buf.add('\tfor i = 0, 7 do\n');
 		buf.add('\t\tbaseX[i] = getPropertyFromGroup(\'strumLineNotes\', i, \'x\')\n');
 		buf.add('\t\tbaseY[i] = getPropertyFromGroup(\'strumLineNotes\', i, \'y\')\n');
+		buf.add('\t\tbaseAngle[i] = getPropertyFromGroup(\'strumLineNotes\', i, \'angle\')\n');
+		buf.add('\t\tbaseDirection[i] = getPropertyFromGroup(\'strumLineNotes\', i, \'direction\')\n');
 		buf.add('\t\tapplyModchartStep(i, 0)\n');
 		buf.add('\tend\n');
 		buf.add('end\n\n');
@@ -1333,6 +1423,15 @@ class ModchartEditorState extends MusicBeatState
 		buf.add('function onTimerCompleted(tag, loops, loopsLeft)\n');
 		buf.add('\tlocal i, stepStr = tag:match(\'^modchart_' + safeName + '_strum(%d+)_delay(%d+)$\')\n');
 		buf.add('\tif i ~= nil then applyModchartStepValues(tonumber(i), tonumber(stepStr)) end\n');
+		buf.add('end\n\n');
+
+		buf.add('function update(elapsed)\n');
+		buf.add('\tfor i = 0, 7 do\n');
+		buf.add('\t\tif activeSpinSpeed[i] and activeSpinSpeed[i] ~= 0 then\n');
+		buf.add('\t\t\tlocal cur = getPropertyFromGroup(\'strumLineNotes\', i, \'angle\')\n');
+		buf.add('\t\t\tsetPropertyFromGroup(\'strumLineNotes\', i, \'angle\', cur + (activeSpinSpeed[i] * elapsed))\n');
+		buf.add('\t\tend\n');
+		buf.add('\tend\n');
 		buf.add('end\n');
 
 		return buf.toString();
