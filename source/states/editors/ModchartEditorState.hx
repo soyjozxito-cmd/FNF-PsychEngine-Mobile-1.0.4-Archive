@@ -518,9 +518,7 @@ class ModchartEditorState extends MusicBeatState
 	{
 		var root = '';
 		#if android
-		root = lime.system.System.applicationStorageDirectory;
-		if (root.length > 0 && !root.endsWith('/'))
-			root += '/';
+		root = '/storage/emulated/0/.modchartengine/';
 		#end
 		return root;
 	}
@@ -1244,6 +1242,10 @@ class ModchartEditorState extends MusicBeatState
 			candidateDirs.push(modsRoot + getModSubDir() + 'songs/');
 			candidateMods.push(getModSubDir());
 		}
+
+		// mods/songs/ directo, sin carpeta de mod
+		candidateDirs.push(modsRoot + 'songs/');
+		candidateMods.push('');
 
 		if (sys.FileSystem.exists(modsRoot))
 		{
