@@ -75,6 +75,7 @@ class ModchartEditorState extends MusicBeatState
 
 	var selectedStrums:Array<Int> = [0, 1, 2, 3, 4, 5, 6, 7];
 	var selectionMode:String = 'ALL';
+	var multiSelectMode:Bool = false;
 
 	var stepCoarse:Bool = false; // false = paso fino (1 / 0.05), true = paso grueso (10 / 0.5)
 
@@ -88,6 +89,7 @@ class ModchartEditorState extends MusicBeatState
 	var middlescrollActive:Bool = false;
 	var showOpponentMid:Bool = false;
 	var opponentToggleBtn:FlxButton;
+	var multiSelectBtn:FlxButton;
 
 	var uiBox:FlxSprite;
 	var tabsGroup:FlxTypedGroup<FlxSprite>;
@@ -296,6 +298,7 @@ class ModchartEditorState extends MusicBeatState
 		var playerX:Array<Float> = [732, 844, 956, 1068];
 		var scale:Float = FlxG.width / 1280;
 		var midShift:Float = mid ? -320 * scale : 0;
+		var realY:Float = (ClientPrefs.data.downScroll ? 570 : 50) * scale;
 
 		for (i in 0...8)
 		{
@@ -303,7 +306,7 @@ class ModchartEditorState extends MusicBeatState
 			var lane:Int = isPlayer ? (i - 4) : i;
 			var rawX:Float = isPlayer ? playerX[lane] : opponentX[lane];
 			var targetX:Float = (rawX * scale) + midShift;
-			var targetY:Float = 8;
+			var targetY:Float = realY;
 
 			strumBaseX.push(targetX);
 			strumBaseY.push(targetY);
@@ -312,7 +315,7 @@ class ModchartEditorState extends MusicBeatState
 			strum.frames = Paths.getSparrowAtlas('NOTE_assets');
 			strum.animation.addByPrefix('static', 'arrow' + arrowDirs[i % 4].toUpperCase());
 			strum.animation.play('static');
-			strum.setGraphicSize(Std.int(strum.width * 0.55));
+			strum.setGraphicSize(Std.int(strum.width * scale));
 			strum.updateHitbox();
 			strum.antialiasing = ClientPrefs.data.antialiasing;
 			strum.ID = i;
@@ -726,13 +729,23 @@ class ModchartEditorState extends MusicBeatState
 		resetBtn.color = FlxColor.RED;
 		valoresGroup.add(resetBtn);
 
-		txtSelection = new FlxText(640, 225, 380, '', 18);
+		multiSelectBtn = new FlxButton(600, 215, 'Multi-selección: OFF', function() {
+			multiSelectMode = !multiSelectMode;
+			multiSelectBtn.label.text = 'Multi-selección: ' + (multiSelectMode ? 'ON' : 'OFF');
+			centerLabel(multiSelectBtn, 13);
+		});
+		multiSelectBtn.setGraphicSize(210, 36);
+		multiSelectBtn.updateHitbox();
+		multiSelectBtn.color = FlxColor.ORANGE;
+		valoresGroup.add(multiSelectBtn);
+
+		txtSelection = new FlxText(60, 258, 380, '', 18);
 		txtSelection.setFormat(Paths.font('vcr.ttf'), 18, FlxColor.CYAN, 'left');
 		valoresGroup.add(txtSelection);
 
 		if (middlescrollActive)
 		{
-			opponentToggleBtn = new FlxButton(1030, 215, 'Mostrar Opponent', function() {
+			opponentToggleBtn = new FlxButton(460, 258, 'Mostrar Opponent', function() {
 				showOpponentMid = !showOpponentMid;
 				opponentToggleBtn.label.text = showOpponentMid ? 'Ocultar Opponent' : 'Mostrar Opponent';
 				centerLabel(opponentToggleBtn, 13);
@@ -746,7 +759,7 @@ class ModchartEditorState extends MusicBeatState
 		}
 
 		// Navegación de acciones
-		var prevBtn = new FlxButton(30, 270, '< Anterior', function() {
+		var prevBtn = new FlxButton(30, 305, '< Anterior', function() {
 			if (currentActionIndex > 0)
 			{
 				currentActionIndex--;
@@ -757,10 +770,10 @@ class ModchartEditorState extends MusicBeatState
 		prevBtn.updateHitbox();
 		valoresGroup.add(prevBtn);
 
-		txtActionInfo = new FlxText(190, 280, 200, 'Acción 1/1', 18);
+		txtActionInfo = new FlxText(190, 315, 200, 'Acción 1/1', 18);
 		valoresGroup.add(txtActionInfo);
 
-		var nextBtn = new FlxButton(400, 270, 'Siguiente >', function() {
+		var nextBtn = new FlxButton(400, 305, 'Siguiente >', function() {
 			if (currentActionIndex < strumActions[refStrumId()].length - 1)
 			{
 				currentActionIndex++;
@@ -771,20 +784,20 @@ class ModchartEditorState extends MusicBeatState
 		nextBtn.updateHitbox();
 		valoresGroup.add(nextBtn);
 
-		var addActionBtn = new FlxButton(560, 270, '+ Nueva acción', addAction);
+		var addActionBtn = new FlxButton(560, 305, '+ Nueva acción', addAction);
 		addActionBtn.setGraphicSize(140, 36);
 		addActionBtn.updateHitbox();
 		addActionBtn.color = FlxColor.LIME;
 		addActionBtn.label.color = FlxColor.BLACK;
 		valoresGroup.add(addActionBtn);
 
-		var delActionBtn = new FlxButton(750, 270, 'Eliminar acción', removeAction);
+		var delActionBtn = new FlxButton(750, 305, 'Eliminar acción', removeAction);
 		delActionBtn.setGraphicSize(140, 36);
 		delActionBtn.updateHitbox();
 		delActionBtn.color = FlxColor.RED;
 		valoresGroup.add(delActionBtn);
 
-		var stepBtn = new FlxButton(950, 270, 'Paso: fino', function() {
+		var stepBtn = new FlxButton(950, 305, 'Paso: fino', function() {
 			stepCoarse = !stepCoarse;
 			txtStepMode.text = 'Paso: ' + (stepCoarse ? 'grueso' : 'fino');
 		});
@@ -793,7 +806,7 @@ class ModchartEditorState extends MusicBeatState
 		valoresGroup.add(stepBtn);
 		txtStepMode = stepBtn.label;
 
-		var returnBtn = new FlxButton(30, 320, '↩ Volver al inicio (nueva acción)', addReturnAction);
+		var returnBtn = new FlxButton(30, 355, '↩ Volver al inicio (nueva acción)', addReturnAction);
 		returnBtn.setGraphicSize(250, 31);
 		returnBtn.updateHitbox();
 		returnBtn.color = FlxColor.CYAN;
@@ -801,35 +814,35 @@ class ModchartEditorState extends MusicBeatState
 		valoresGroup.add(returnBtn);
 
 		// Campos numéricos: X, Y, Angle, Alpha, Direction (fila 1) / Duration, Delay (fila 2)
-		txtX = addNumField(valoresGroup, 30, 378, 'X', function() return posStep(), function(d) nudge('x', d));
-		txtY = addNumField(valoresGroup, 230, 378, 'Y', function() return posStep(), function(d) nudge('y', d));
-		txtAngle = addNumField(valoresGroup, 430, 378, 'Ángulo', function() return posStep(), function(d) nudge('angle', d));
-		txtAlpha = addNumField(valoresGroup, 630, 378, 'Alpha', function() return alphaStep(), function(d) nudge('alpha', d));
-		txtDirection = addNumField(valoresGroup, 830, 378, 'Dirección', function() return posStep(), function(d) nudge('direction', d));
+		txtX = addNumField(valoresGroup, 30, 413, 'X', function() return posStep(), function(d) nudge('x', d));
+		txtY = addNumField(valoresGroup, 230, 413, 'Y', function() return posStep(), function(d) nudge('y', d));
+		txtAngle = addNumField(valoresGroup, 430, 413, 'Ángulo', function() return posStep(), function(d) nudge('angle', d));
+		txtAlpha = addNumField(valoresGroup, 630, 413, 'Alpha', function() return alphaStep(), function(d) nudge('alpha', d));
+		txtDirection = addNumField(valoresGroup, 830, 413, 'Dirección', function() return posStep(), function(d) nudge('direction', d));
 
-		txtDuration = addNumField(valoresGroup, 30, 458, 'Duración', function() return timeStep(), function(d) nudge('duration', d));
-		txtDelay = addNumField(valoresGroup, 230, 458, 'Delay', function() return timeStep(), function(d) nudge('delay', d));
-		txtSpin = addNumField(valoresGroup, 630, 458, 'Giro °/seg', function() return posStep() * 9, function(d) nudge('spinSpeed', d));
+		txtDuration = addNumField(valoresGroup, 30, 493, 'Duración', function() return timeStep(), function(d) nudge('duration', d));
+		txtDelay = addNumField(valoresGroup, 230, 493, 'Delay', function() return timeStep(), function(d) nudge('delay', d));
+		txtSpin = addNumField(valoresGroup, 630, 493, 'Giro °/seg', function() return posStep() * 9, function(d) nudge('spinSpeed', d));
 
-		var unitBtn = new FlxButton(30, 545, 'Unidad: segundos', function() cycleDurationUnit(1));
+		var unitBtn = new FlxButton(30, 580, 'Unidad: segundos', function() cycleDurationUnit(1));
 		unitBtn.setGraphicSize(164, 36);
 		unitBtn.updateHitbox();
 		valoresGroup.add(unitBtn);
 		txtDurationUnit = unitBtn.label;
 
-		var easeBtn = new FlxButton(250, 545, 'Ease: linear', function() cycleEase(1));
+		var easeBtn = new FlxButton(250, 580, 'Ease: linear', function() cycleEase(1));
 		easeBtn.setGraphicSize(148, 36);
 		easeBtn.updateHitbox();
 		valoresGroup.add(easeBtn);
 		txtEase = easeBtn.label;
 
-		var easeTypeBtn = new FlxButton(470, 545, 'Tipo: InOut', function() cycleEaseType(1));
+		var easeTypeBtn = new FlxButton(470, 580, 'Tipo: InOut', function() cycleEaseType(1));
 		easeTypeBtn.setGraphicSize(125, 36);
 		easeTypeBtn.updateHitbox();
 		valoresGroup.add(easeTypeBtn);
 		txtEaseType = easeTypeBtn.label;
 
-		var helpTxt = new FlxText(30, 605, FlxG.width - 60, 'Tocá y arrastrá un strum para seleccionarlo individualmente. Los cambios de esta pestaña se aplican a todos los strums seleccionados, en la acción actual.', 17);
+		var helpTxt = new FlxText(30, 640, FlxG.width - 60, 'Tocá y arrastrá un strum para seleccionarlo individualmente. Los cambios de esta pestaña se aplican a todos los strums seleccionados, en la acción actual.', 17);
 		helpTxt.setFormat(Paths.font('vcr.ttf'), 17, FlxColor.GRAY, 'left');
 		helpTxt.color = FlxColor.GRAY;
 		valoresGroup.add(helpTxt);
@@ -894,8 +907,22 @@ class ModchartEditorState extends MusicBeatState
 
 	function selectSingle(i:Int)
 	{
-		selectionMode = 'INDIVIDUAL';
-		selectedStrums = [i];
+		if (multiSelectMode)
+		{
+			selectionMode = 'MÚLTIPLE';
+			if (selectedStrums.indexOf(i) >= 0)
+			{
+				if (selectedStrums.length > 1)
+					selectedStrums.remove(i);
+			}
+			else
+				selectedStrums.push(i);
+		}
+		else
+		{
+			selectionMode = 'INDIVIDUAL';
+			selectedStrums = [i];
+		}
 		updateStrumHighlight();
 		refreshFieldsFromModel();
 	}
