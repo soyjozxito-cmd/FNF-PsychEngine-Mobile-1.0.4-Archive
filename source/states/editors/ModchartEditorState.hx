@@ -315,7 +315,7 @@ class ModchartEditorState extends MusicBeatState
 			strum.frames = Paths.getSparrowAtlas('NOTE_assets');
 			strum.animation.addByPrefix('static', 'arrow' + arrowDirs[i % 4].toUpperCase());
 			strum.animation.play('static');
-			strum.setGraphicSize(Std.int(strum.width * scale));
+			strum.setGraphicSize(Std.int(strum.width * 0.7 * scale));
 			strum.updateHitbox();
 			strum.antialiasing = ClientPrefs.data.antialiasing;
 			strum.ID = i;
