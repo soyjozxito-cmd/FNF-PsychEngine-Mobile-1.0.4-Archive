@@ -143,6 +143,7 @@ class ModchartEditorState extends MusicBeatState
 	var testTimers:Array<FlxTimer> = [];
 	var testTweens:Array<FlxTween> = [];
 	var currentSongName:String = null;
+	var currentSongModFolder:String = '';
 	var currentSongBPM:Float = 100;
 	var txtCurrentSong:FlxText;
 	var songListGroup:FlxTypedGroup<FlxSprite>;
@@ -1234,44 +1235,78 @@ class ModchartEditorState extends MusicBeatState
 		songListGroup.clear();
 
 		#if sys
-		var dir = getSongsPath();
-		if (!sys.FileSystem.exists(dir))
+		var modsRoot = getModsRoot() + 'mods/';
+		var candidateDirs:Array<String> = []; // songsPath -> modFolder (guardado paralelo)
+		var candidateMods:Array<String> = [];
+
+		if (getModSubDir().length > 0)
 		{
-			setStatus('No encontré la carpeta songs/ de este mod.');
-			return;
+			candidateDirs.push(modsRoot + getModSubDir() + 'songs/');
+			candidateMods.push(getModSubDir());
 		}
-		var folders = sys.FileSystem.readDirectory(dir);
-		var y = 485.0;
-		for (f in folders)
+
+		if (sys.FileSystem.exists(modsRoot))
 		{
-			if (sys.FileSystem.isDirectory(dir + f))
+			for (folder in sys.FileSystem.readDirectory(modsRoot))
 			{
+				if (!sys.FileSystem.isDirectory(modsRoot + folder))
+					continue;
+				var p = modsRoot + folder + '/songs/';
+				var already = false;
+				for (c in candidateDirs)
+					if (c == p)
+						already = true;
+				if (!already && sys.FileSystem.exists(p))
+				{
+					candidateDirs.push(p);
+					candidateMods.push(folder + '/');
+				}
+			}
+		}
+
+		var y = 485.0;
+		var totalFound = 0;
+		for (ci in 0...candidateDirs.length)
+		{
+			var dir = candidateDirs[ci];
+			var modFolder = candidateMods[ci];
+			if (!sys.FileSystem.exists(dir))
+				continue;
+			for (f in sys.FileSystem.readDirectory(dir))
+			{
+				if (!sys.FileSystem.isDirectory(dir + f))
+					continue;
 				var songName = f;
+				var songMod = modFolder;
 				var btn = new FlxButton(30, y, songName, function() {
-					selectSong(songName);
+					selectSong(songName, songMod);
 				});
 				btn.setGraphicSize(300, 38);
 				btn.updateHitbox();
 				centerLabel(btn, 16, pruebaGroup);
 				songListGroup.add(btn);
 				y += 42;
+				totalFound++;
 				if (y > FlxG.height - 60)
 					break;
 			}
 		}
-		if (folders.length == 0)
-			setStatus('No hay canciones en songs/ de este mod.');
+		if (totalFound == 0)
+			setStatus('No encontré ninguna carpeta songs/ con canciones en mods/.');
+		else
+			setStatus('Encontré ' + totalFound + ' canción(es).');
 		#end
 	}
 
-	function selectSong(songName:String)
+	function selectSong(songName:String, songMod:String)
 	{
 		currentSongName = songName;
+		currentSongModFolder = songMod;
 		currentSongBPM = 100;
 		#if sys
 		try
 		{
-			var dataPath = getModsRoot() + 'mods/' + getModSubDir() + 'data/' + songName + '/' + songName + '.json';
+			var dataPath = getModsRoot() + 'mods/' + songMod + 'data/' + songName + '/' + songName + '.json';
 			if (sys.FileSystem.exists(dataPath))
 			{
 				var data:Dynamic = haxe.Json.parse(sys.io.File.getContent(dataPath));
