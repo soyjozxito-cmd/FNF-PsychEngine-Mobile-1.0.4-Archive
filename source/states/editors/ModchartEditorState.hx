@@ -408,6 +408,8 @@ class ModchartEditorState extends MusicBeatState
 		pruebaGroup.visible = pruebaGroup.active = uiVisible && (currentTab == 'Prueba');
 		configGroup.visible = configGroup.active = uiVisible && (currentTab == 'Configuración');
 		loadListGroup.visible = loadListGroup.active = uiVisible && (currentTab == 'Archivo');
+		if (songListGroup != null)
+			songListGroup.visible = songListGroup.active = uiVisible && (currentTab == 'Prueba');
 		if (statusText != null)
 			statusText.visible = uiVisible;
 	}
@@ -1216,7 +1218,7 @@ class ModchartEditorState extends MusicBeatState
 		pruebaGroup.add(txtCurrentSong);
 
 		songListGroup = new FlxTypedGroup<FlxSprite>();
-		pruebaGroup.add(songListGroup);
+		add(songListGroup);
 	}
 
 	function getSongsPath():String
