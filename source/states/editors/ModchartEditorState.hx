@@ -9,6 +9,7 @@ import flixel.group.FlxGroup.FlxTypedGroup;
 import flixel.tweens.FlxTween;
 import flixel.tweens.FlxEase;
 import flixel.util.FlxTimer;
+import flixel.sound.FlxSound;
 
 import backend.Paths;
 import backend.Mods;
@@ -44,6 +45,8 @@ typedef ModchartAction = {
 	var ease:String; // linear, sine, quad, cube, quart, quint, expo, circ, back, elastic, bounce, smoothStep, smootherStep
 	var easeType:String; // 'In' | 'Out' | 'InOut'
 	var spinSpeed:Float; // grados por segundo de giro CONTINUO mientras esta acción está activa (0 = no gira)
+	var useAbsTime:Bool; // true = esperar a un minuto:segundo exacto de la canción en vez de esperar la acción anterior
+	var absTime:Float; // segundos totales (ej: 1:21 = 81)
 }
 
 class ModchartEditorState extends MusicBeatState
@@ -119,6 +122,8 @@ class ModchartEditorState extends MusicBeatState
 	var txtDuration:FlxText;
 	var txtDelay:FlxText;
 	var txtSpin:FlxText;
+	var triggerModeBtn:FlxButton;
+	var txtAbsTime:FlxText;
 	var txtDurationUnit:FlxText;
 	var txtEase:FlxText;
 	var txtEaseType:FlxText;
@@ -144,6 +149,9 @@ class ModchartEditorState extends MusicBeatState
 	var testTweens:Array<FlxTween> = [];
 	var currentSongName:String = null;
 	var currentSongModFolder:String = '';
+	var voicesSound:FlxSound;
+	var songPaused:Bool = false;
+	var pauseSongBtn:FlxButton;
 	var currentSongBPM:Float = 100;
 	var txtCurrentSong:FlxText;
 	var songListGroup:FlxTypedGroup<FlxSprite>;
@@ -259,7 +267,7 @@ class ModchartEditorState extends MusicBeatState
 
 	function defaultAction():ModchartAction
 	{
-		return {x: 0, y: 0, angle: 0, alpha: 1, direction: 0, duration: 0, delay: 0, durationUnit: 'seconds', ease: 'linear', easeType: 'InOut', spinSpeed: 0};
+		return {x: 0, y: 0, angle: 0, alpha: 1, direction: 0, duration: 0, delay: 0, durationUnit: 'seconds', ease: 'linear', easeType: 'InOut', spinSpeed: 0, useAbsTime: false, absTime: 0};
 	}
 
 	function copyAction(a:ModchartAction):ModchartAction
@@ -267,7 +275,7 @@ class ModchartEditorState extends MusicBeatState
 		return {
 			x: a.x, y: a.y, angle: a.angle, alpha: a.alpha, direction: a.direction,
 			duration: a.duration, delay: a.delay, durationUnit: a.durationUnit, ease: a.ease, easeType: a.easeType,
-			spinSpeed: a.spinSpeed
+			spinSpeed: a.spinSpeed, useAbsTime: a.useAbsTime, absTime: a.absTime
 		};
 	}
 
@@ -299,7 +307,9 @@ class ModchartEditorState extends MusicBeatState
 						durationUnit: rawA.durationUnit != null ? rawA.durationUnit : 'seconds',
 						ease: rawA.ease != null ? rawA.ease : 'linear',
 						easeType: rawA.easeType != null ? rawA.easeType : 'InOut',
-						spinSpeed: rawA.spinSpeed != null ? rawA.spinSpeed : 0
+						spinSpeed: rawA.spinSpeed != null ? rawA.spinSpeed : 0,
+					useAbsTime: rawA.useAbsTime != null ? rawA.useAbsTime : false,
+					absTime: rawA.absTime != null ? rawA.absTime : 0
 					});
 				}
 			}
@@ -877,25 +887,58 @@ class ModchartEditorState extends MusicBeatState
 		txtDelay = addNumField(valoresGroup, 230, 533, 'Delay', function() return timeStep(), function(d) nudge('delay', d));
 		txtSpin = addNumField(valoresGroup, 630, 533, 'Giro °/seg', function() return posStep() * 9, function(d) nudge('spinSpeed', d));
 
-		var unitBtn = new FlxButton(30, 620, 'Unidad: segundos', function() cycleDurationUnit(1));
+		triggerModeBtn = new FlxButton(30, 578, 'Disparo: Secuencial', function() {
+			var newVal = !referenceAction().useAbsTime;
+			for (i in selectedStrums)
+				strumActions[i][safeIdx(i)].useAbsTime = newVal;
+			triggerModeBtn.label.text = 'Disparo: ' + (newVal ? 'Tiempo fijo' : 'Secuencial');
+			centerLabel(triggerModeBtn, 15);
+			refreshFieldsFromModel();
+		});
+		triggerModeBtn.setGraphicSize(220, 38);
+		triggerModeBtn.updateHitbox();
+		triggerModeBtn.color = FlxColor.PURPLE;
+		valoresGroup.add(triggerModeBtn);
+
+		txtAbsTime = addNumField(valoresGroup, 270, 578, 'Tiempo (mm:ss)', function() return stepCoarse ? 10 : 1, function(d) nudge('absTime', d));
+
+		var useNowBtn = new FlxButton(470, 578, 'Usar tiempo actual', function() {
+			if (FlxG.sound.music == null)
+			{
+				setStatus('No hay ninguna canción sonando para tomar el tiempo.');
+				return;
+			}
+			var secs = FlxG.sound.music.time / 1000;
+			for (i in selectedStrums)
+				strumActions[i][safeIdx(i)].absTime = secs;
+			refreshFieldsFromModel();
+			setStatus('Tiempo tomado: ' + formatSongTime(FlxG.sound.music.time));
+		});
+		useNowBtn.setGraphicSize(210, 38);
+		useNowBtn.updateHitbox();
+		useNowBtn.color = FlxColor.CYAN;
+		useNowBtn.label.color = FlxColor.BLACK;
+		valoresGroup.add(useNowBtn);
+
+		var unitBtn = new FlxButton(30, 668, 'Unidad: segundos', function() cycleDurationUnit(1));
 		unitBtn.setGraphicSize(164, 36);
 		unitBtn.updateHitbox();
 		valoresGroup.add(unitBtn);
 		txtDurationUnit = unitBtn.label;
 
-		var easeBtn = new FlxButton(250, 620, 'Ease: linear', function() cycleEase(1));
+		var easeBtn = new FlxButton(250, 668, 'Ease: linear', function() cycleEase(1));
 		easeBtn.setGraphicSize(148, 36);
 		easeBtn.updateHitbox();
 		valoresGroup.add(easeBtn);
 		txtEase = easeBtn.label;
 
-		var easeTypeBtn = new FlxButton(470, 620, 'Tipo: InOut', function() cycleEaseType(1));
+		var easeTypeBtn = new FlxButton(470, 668, 'Tipo: InOut', function() cycleEaseType(1));
 		easeTypeBtn.setGraphicSize(125, 36);
 		easeTypeBtn.updateHitbox();
 		valoresGroup.add(easeTypeBtn);
 		txtEaseType = easeTypeBtn.label;
 
-		var helpTxt = new FlxText(30, 680, FlxG.width - 60, 'Los cambios se aplican a los strums seleccionados, en la acción actual.', 15);
+		var helpTxt = new FlxText(30, 728, FlxG.width - 60, 'Los cambios se aplican a los strums seleccionados, en la acción actual.', 15);
 		helpTxt.setFormat(Paths.font('vcr.ttf'), 17, FlxColor.GRAY, 'left');
 		helpTxt.color = FlxColor.GRAY;
 		valoresGroup.add(helpTxt);
@@ -1017,6 +1060,7 @@ class ModchartEditorState extends MusicBeatState
 				case 'direction': a.direction += delta;
 				case 'duration': a.duration = Math.max(0, a.duration + delta);
 				case 'delay': a.delay = Math.max(0, a.delay + delta);
+				case 'absTime': a.absTime = Math.max(0, a.absTime + delta);
 				case 'spinSpeed': a.spinSpeed += delta;
 			}
 		}
@@ -1142,6 +1186,12 @@ class ModchartEditorState extends MusicBeatState
 			txtDuration.text = Std.string(Math.round(a.duration * 100) / 100);
 			txtDelay.text = Std.string(Math.round(a.delay * 100) / 100);
 			txtSpin.text = Std.string(Math.round(a.spinSpeed));
+			txtAbsTime.text = formatSongTime(a.absTime * 1000);
+			if (triggerModeBtn != null)
+			{
+				triggerModeBtn.label.text = 'Disparo: ' + (a.useAbsTime ? 'Tiempo fijo' : 'Secuencial');
+				centerLabel(triggerModeBtn, 15);
+			}
 			txtDurationUnit.text = 'Unidad: ' + a.durationUnit;
 			txtEase.text = 'Ease: ' + a.ease;
 			txtEaseType.text = 'Tipo: ' + a.easeType;
@@ -1205,6 +1255,9 @@ class ModchartEditorState extends MusicBeatState
 
 		var stopSongBtn = new FlxButton(450, 405, 'Detener canción', function() {
 			FlxG.sound.music.stop();
+			if (voicesSound != null)
+				voicesSound.stop();
+			songPaused = false;
 			setStatus('Canción detenida.');
 		});
 		stopSongBtn.setGraphicSize(200, 42);
@@ -1212,7 +1265,30 @@ class ModchartEditorState extends MusicBeatState
 		stopSongBtn.color = FlxColor.RED;
 		pruebaGroup.add(stopSongBtn);
 
-		txtCurrentSong = new FlxText(30, 455, 620, 'Canción: (ninguna) — BPM: 100', 16);
+		pauseSongBtn = new FlxButton(30, 450, 'Pausar', pauseResumeSong);
+		pauseSongBtn.setGraphicSize(150, 40);
+		pauseSongBtn.updateHitbox();
+		pauseSongBtn.color = FlxColor.YELLOW;
+		pauseSongBtn.label.color = FlxColor.BLACK;
+		pruebaGroup.add(pauseSongBtn);
+
+		var backBtn = new FlxButton(190, 450, '<< -5s', function() seekSong(-5));
+		backBtn.setGraphicSize(110, 40);
+		backBtn.updateHitbox();
+		pruebaGroup.add(backBtn);
+
+		var fwdBtn = new FlxButton(310, 450, '+5s >>', function() seekSong(5));
+		fwdBtn.setGraphicSize(110, 40);
+		fwdBtn.updateHitbox();
+		pruebaGroup.add(fwdBtn);
+
+		var resetSongBtn = new FlxButton(430, 450, 'Reiniciar (0:00)', resetSong);
+		resetSongBtn.setGraphicSize(180, 40);
+		resetSongBtn.updateHitbox();
+		resetSongBtn.color = FlxColor.ORANGE;
+		pruebaGroup.add(resetSongBtn);
+
+		txtCurrentSong = new FlxText(30, 500, 620, 'Canción: (ninguna) — BPM: 100', 16);
 		txtCurrentSong.color = FlxColor.YELLOW;
 		pruebaGroup.add(txtCurrentSong);
 
@@ -1266,7 +1342,7 @@ class ModchartEditorState extends MusicBeatState
 			}
 		}
 
-		var y = 485.0;
+		var y = 535.0;
 		var totalFound = 0;
 		for (ci in 0...candidateDirs.length)
 		{
@@ -1331,11 +1407,81 @@ class ModchartEditorState extends MusicBeatState
 		try
 		{
 			FlxG.sound.playMusic(Paths.inst(currentSongName), 1, true);
+			if (voicesSound != null)
+			{
+				voicesSound.stop();
+				voicesSound.destroy();
+				voicesSound = null;
+			}
+			voicesSound = FlxG.sound.load(Paths.voices(currentSongName), 1, true);
+			if (voicesSound != null)
+				voicesSound.play();
+			songPaused = false;
+			if (pauseSongBtn != null)
+			{
+				pauseSongBtn.label.text = 'Pausar';
+				centerLabel(pauseSongBtn, 18);
+			}
 		}
 		catch (e:Dynamic)
 		{
-			setStatus('No pude reproducir esa canción (¿le falta el Inst.ogg?).');
+			setStatus('No pude reproducir esa canción (¿le faltan Inst.ogg / Voices.ogg?).');
 		}
+	}
+
+	function pauseResumeSong()
+	{
+		if (FlxG.sound.music == null)
+		{
+			setStatus('No hay ninguna canción sonando.');
+			return;
+		}
+		songPaused = !songPaused;
+		if (songPaused)
+		{
+			FlxG.sound.music.pause();
+			if (voicesSound != null)
+				voicesSound.pause();
+			setStatus('Canción pausada en ' + formatSongTime(FlxG.sound.music.time));
+		}
+		else
+		{
+			FlxG.sound.music.resume();
+			if (voicesSound != null)
+				voicesSound.resume();
+			setStatus('Canción reanudada.');
+		}
+		pauseSongBtn.label.text = songPaused ? 'Reanudar' : 'Pausar';
+		centerLabel(pauseSongBtn, 18);
+	}
+
+	function seekSong(deltaSeconds:Float)
+	{
+		if (FlxG.sound.music == null)
+			return;
+		var newTime = Math.max(0, FlxG.sound.music.time + (deltaSeconds * 1000));
+		FlxG.sound.music.time = newTime;
+		if (voicesSound != null)
+			voicesSound.time = newTime;
+		setStatus('Canción en ' + formatSongTime(newTime));
+	}
+
+	function resetSong()
+	{
+		if (FlxG.sound.music == null)
+			return;
+		FlxG.sound.music.time = 0;
+		if (voicesSound != null)
+			voicesSound.time = 0;
+		setStatus('Canción reiniciada (0:00).');
+	}
+
+	function formatSongTime(ms:Float):String
+	{
+		var totalSec = Std.int(ms / 1000);
+		var min = Std.int(totalSec / 60);
+		var sec = totalSec % 60;
+		return min + ':' + (sec < 10 ? '0' : '') + sec;
 	}
 
 	function startTest()
@@ -1404,7 +1550,24 @@ class ModchartEditorState extends MusicBeatState
 			}
 		};
 
-		if (delaySec > 0)
+		if (a.useAbsTime)
+		{
+			var t = new FlxTimer();
+			t.start(0.05, function(tmr) {
+				if (!testActive)
+				{
+					tmr.cancel();
+					return;
+				}
+				if (FlxG.sound.music != null && FlxG.sound.music.time >= a.absTime * 1000)
+				{
+					tmr.cancel();
+					doApply();
+				}
+			}, 0);
+			testTimers.push(t);
+		}
+		else if (delaySec > 0)
 		{
 			var t = new FlxTimer().start(delaySec, function(_) doApply());
 			testTimers.push(t);
@@ -1632,7 +1795,8 @@ class ModchartEditorState extends MusicBeatState
 			{
 				buf.add('\t\t{x=' + a.x + ', y=' + a.y + ', angle=' + a.angle + ', alpha=' + a.alpha
 					+ ', direction=' + a.direction + ', duration=' + a.duration + ', delay=' + a.delay
-					+ ', durationUnit=\'' + a.durationUnit + '\', ease=\'' + buildEaseString(a) + '\'},\n');
+					+ ', durationUnit=\'' + a.durationUnit + '\', ease=\'' + buildEaseString(a) + '\''
+					+ ', spinSpeed=' + a.spinSpeed + ', useAbsTime=' + (a.useAbsTime ? 'true' : 'false') + ', absTime=' + a.absTime + '},\n');
 			}
 			buf.add('\t},\n');
 		}
@@ -1642,7 +1806,9 @@ class ModchartEditorState extends MusicBeatState
 		buf.add('local baseX, baseY, baseAngle, baseDirection = {}, {}, {}, {}\n');
 		buf.add('local curStepIndex = {}\n');
 		buf.add('local activeSpinSpeed = {}\n');
+		buf.add('local waitingAbsTime = {}\n');
 		buf.add('for i = 0, 7 do activeSpinSpeed[i] = 0 end\n');
+		buf.add('for i = 0, 7 do waitingAbsTime[i] = false end\n');
 		buf.add('for i = 0, 7 do curStepIndex[i] = 0 end\n\n');
 
 		buf.add('local function unitMultiplier(unit)\n');
@@ -1687,6 +1853,10 @@ class ModchartEditorState extends MusicBeatState
 		buf.add('\tlocal step = modchartSteps[i][stepIndex + 1]\n');
 		buf.add('\tif not step then return end\n');
 		buf.add('\tactiveSpinSpeed[i] = step.spinSpeed or 0\n');
+		buf.add('\tif step.useAbsTime then\n');
+		buf.add('\t\twaitingAbsTime[i] = true\n');
+		buf.add('\t\treturn\n');
+		buf.add('\tend\n');
 		buf.add('\tif step.delay and step.delay > 0 then\n');
 		buf.add('\t\tlocal dur = step.delay * unitMultiplier(step.durationUnit) / playbackRate\n');
 		buf.add('\t\truntimerTag_' + safeName + '(i, stepIndex, dur)\n');
@@ -1742,6 +1912,13 @@ class ModchartEditorState extends MusicBeatState
 		buf.add('\t\tif activeSpinSpeed[i] and activeSpinSpeed[i] ~= 0 then\n');
 		buf.add('\t\t\tlocal cur = getPropertyFromGroup(\'strumLineNotes\', i, \'angle\')\n');
 		buf.add('\t\t\tsetPropertyFromGroup(\'strumLineNotes\', i, \'angle\', cur + (activeSpinSpeed[i] * elapsed))\n');
+		buf.add('\t\tend\n');
+		buf.add('\t\tif waitingAbsTime[i] then\n');
+		buf.add('\t\t\tlocal step = modchartSteps[i][curStepIndex[i] + 1]\n');
+		buf.add('\t\t\tif step and getSongPosition() >= (step.absTime or 0) * 1000 then\n');
+		buf.add('\t\t\t\twaitingAbsTime[i] = false\n');
+		buf.add('\t\t\t\tapplyModchartStepValues(i, curStepIndex[i])\n');
+		buf.add('\t\t\tend\n');
 		buf.add('\t\tend\n');
 		buf.add('\tend\n');
 		buf.add('end\n');
