@@ -142,6 +142,10 @@ class ModchartEditorState extends MusicBeatState
 	var testActive:Bool = false;
 	var testTimers:Array<FlxTimer> = [];
 	var testTweens:Array<FlxTween> = [];
+	var currentSongName:String = null;
+	var currentSongBPM:Float = 100;
+	var txtCurrentSong:FlxText;
+	var songListGroup:FlxTypedGroup<FlxSprite>;
 
 	// ---------------------------------------------------------------
 	// CREATE
@@ -1173,6 +1177,126 @@ class ModchartEditorState extends MusicBeatState
 		stopBtn.updateHitbox();
 		stopBtn.color = FlxColor.RED;
 		pruebaGroup.add(stopBtn);
+
+		var songLbl = new FlxText(30, 370, 500, 'Canción de fondo (para probar con música real):', 17);
+		pruebaGroup.add(songLbl);
+
+		var chooseSongBtn = new FlxButton(30, 405, 'Elegir canción', function() {
+			refreshSongList();
+		});
+		chooseSongBtn.setGraphicSize(200, 42);
+		chooseSongBtn.updateHitbox();
+		chooseSongBtn.color = FlxColor.CYAN;
+		chooseSongBtn.label.color = FlxColor.BLACK;
+		pruebaGroup.add(chooseSongBtn);
+
+		var playSongBtn = new FlxButton(240, 405, 'Reproducir canción', function() {
+			if (currentSongName != null)
+				playCurrentSong();
+			else
+				setStatus('Primero elegí una canción de la lista.');
+		});
+		playSongBtn.setGraphicSize(200, 42);
+		playSongBtn.updateHitbox();
+		playSongBtn.color = FlxColor.LIME;
+		playSongBtn.label.color = FlxColor.BLACK;
+		pruebaGroup.add(playSongBtn);
+
+		var stopSongBtn = new FlxButton(450, 405, 'Detener canción', function() {
+			FlxG.sound.music.stop();
+			setStatus('Canción detenida.');
+		});
+		stopSongBtn.setGraphicSize(200, 42);
+		stopSongBtn.updateHitbox();
+		stopSongBtn.color = FlxColor.RED;
+		pruebaGroup.add(stopSongBtn);
+
+		txtCurrentSong = new FlxText(30, 455, 620, 'Canción: (ninguna) — BPM: 100', 16);
+		txtCurrentSong.color = FlxColor.YELLOW;
+		pruebaGroup.add(txtCurrentSong);
+
+		songListGroup = new FlxTypedGroup<FlxSprite>();
+		pruebaGroup.add(songListGroup);
+	}
+
+	function getSongsPath():String
+	{
+		return getModsRoot() + 'mods/' + getModSubDir() + 'songs/';
+	}
+
+	function refreshSongList()
+	{
+		for (m in songListGroup.members)
+			if (m != null)
+				m.destroy();
+		songListGroup.clear();
+
+		#if sys
+		var dir = getSongsPath();
+		if (!sys.FileSystem.exists(dir))
+		{
+			setStatus('No encontré la carpeta songs/ de este mod.');
+			return;
+		}
+		var folders = sys.FileSystem.readDirectory(dir);
+		var y = 485.0;
+		for (f in folders)
+		{
+			if (sys.FileSystem.isDirectory(dir + f))
+			{
+				var songName = f;
+				var btn = new FlxButton(30, y, songName, function() {
+					selectSong(songName);
+				});
+				btn.setGraphicSize(300, 38);
+				btn.updateHitbox();
+				centerLabel(btn, 16, pruebaGroup);
+				songListGroup.add(btn);
+				y += 42;
+				if (y > FlxG.height - 60)
+					break;
+			}
+		}
+		if (folders.length == 0)
+			setStatus('No hay canciones en songs/ de este mod.');
+		#end
+	}
+
+	function selectSong(songName:String)
+	{
+		currentSongName = songName;
+		currentSongBPM = 100;
+		#if sys
+		try
+		{
+			var dataPath = getModsRoot() + 'mods/' + getModSubDir() + 'data/' + songName + '/' + songName + '.json';
+			if (sys.FileSystem.exists(dataPath))
+			{
+				var data:Dynamic = haxe.Json.parse(sys.io.File.getContent(dataPath));
+				var songData:Dynamic = data.song != null ? data.song : data;
+				if (songData.bpm != null)
+					currentSongBPM = songData.bpm;
+			}
+		}
+		catch (e:Dynamic) {}
+		#end
+		txtCurrentSong.text = 'Canción: ' + currentSongName + ' — BPM: ' + currentSongBPM;
+		setStatus('Canción seleccionada: ' + songName);
+		playCurrentSong();
+	}
+
+	function playCurrentSong()
+	{
+		if (currentSongName == null)
+			return;
+		try
+		{
+			FlxG.sound.playMusic(Paths.inst(currentSongName), 1, true);
+		}
+		catch (e:Dynamic)
+		{
+			setStatus('No pude reproducir esa canción (¿le falta el Inst.ogg?).');
+		}
 	}
 
 	function startTest()
@@ -1187,6 +1311,17 @@ class ModchartEditorState extends MusicBeatState
 		setStatus('Reproduciendo prueba (los 8 strums)...');
 	}
 
+	function unitToSeconds(amount:Float, unit:String):Float
+	{
+		var crochet = 60 / currentSongBPM;
+		return switch (unit)
+		{
+			case 'beats': amount * crochet;
+			case 'steps': amount * (crochet / 4);
+			default: amount;
+		}
+	}
+
 	function runTestStep(i:Int, stepIdx:Int)
 	{
 		if (!testActive)
@@ -1195,6 +1330,8 @@ class ModchartEditorState extends MusicBeatState
 		if (stepIdx >= arr.length)
 			stepIdx = 0;
 		var a = arr[stepIdx];
+		var durSec = unitToSeconds(a.duration, a.durationUnit);
+		var delaySec = unitToSeconds(a.delay, a.durationUnit);
 
 		var doApply = function() {
 			if (!testActive)
@@ -1202,10 +1339,10 @@ class ModchartEditorState extends MusicBeatState
 			var tx = strumBaseX[i] + a.x;
 			var ty = strumBaseY[i] + a.y;
 			var spr = testStrums.members[i];
-			if (a.duration > 0)
+			if (durSec > 0)
 			{
 				var ease = getFlxEase(a.ease, a.easeType);
-				var tw = FlxTween.tween(spr, {x: tx, y: ty, angle: a.angle, alpha: a.alpha}, a.duration, {
+				var tw = FlxTween.tween(spr, {x: tx, y: ty, angle: a.angle, alpha: a.alpha}, durSec, {
 					ease: ease,
 					onComplete: function(_) {
 						if (arr.length > 1 && (loopActions || stepIdx + 1 < arr.length))
@@ -1228,9 +1365,9 @@ class ModchartEditorState extends MusicBeatState
 			}
 		};
 
-		if (a.delay > 0)
+		if (delaySec > 0)
 		{
-			var t = new FlxTimer().start(a.delay, function(_) doApply());
+			var t = new FlxTimer().start(delaySec, function(_) doApply());
 			testTimers.push(t);
 		}
 		else
