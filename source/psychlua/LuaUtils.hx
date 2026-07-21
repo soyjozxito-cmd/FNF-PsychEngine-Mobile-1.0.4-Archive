@@ -27,6 +27,25 @@ class LuaUtils
 	public static final Function_StopHScript:String = "##PSYCHLUA_FUNCTIONSTOPHSCRIPT";
 	public static final Function_StopAll:String = "##PSYCHLUA_FUNCTIONSTOPALL";
 
+	// Caché de String.split() para rutas de propiedad ('objeto.propiedad.sub'),
+	// que se llaman una y otra vez con el MISMO string desde onUpdate/callbacks
+	// de scripts Lua. Evita re-parsear el string cada vez.
+	// Devuelve SIEMPRE una copia nueva del array (nunca la referencia guardada),
+	// para que nada que la use después pueda "ensuciar" la caché por accidente.
+	static var splitCache:Map<String, Array<String>> = new Map();
+	public static function fastSplit(str:String, delim:String):Array<String>
+	{
+		var key:String = delim + str;
+		var cached:Array<String> = splitCache.get(key);
+		if (cached != null) return cached.copy();
+
+		if(Lambda.count(splitCache) > 1000) splitCache.clear(); // seguro contra crecimiento infinito en sesiones larguísimas
+
+		var result:Array<String> = str.split(delim);
+		splitCache.set(key, result);
+		return result.copy();
+	}
+
 	public static function getLuaTween(options:Dynamic)
 	{
 		return (options != null) ? {
@@ -42,7 +61,7 @@ class LuaUtils
 
 	public static function setVarInArray(instance:Dynamic, variable:String, value:Dynamic, allowMaps:Bool = false):Any
 	{
-		var splitProps:Array<String> = variable.split('[');
+		var splitProps:Array<String> = fastSplit(variable, '[');
 		if(splitProps.length > 1)
 		{
 			var target:Dynamic = null;
@@ -82,7 +101,7 @@ class LuaUtils
 	}
 	public static function getVarInArray(instance:Dynamic, variable:String, allowMaps:Bool = false):Any
 	{
-		var splitProps:Array<String> = variable.split('[');
+		var splitProps:Array<String> = fastSplit(variable, '[');
 		if(splitProps.length > 1)
 		{
 			var target:Dynamic = null;
