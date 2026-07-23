@@ -184,8 +184,11 @@
 	<!-- Disable deprecated warnings-->
 	<haxedef name='no-deprecation-warnings' />
 
-	<!-- Optimización: elimina código muerto del binario final (más chico, arranca más rápido) -->
-	<haxeflag name="-dce" value="full" />
+	<!-- OJO: -dce full daba "Null Function Pointer" al abrir el juego (probable causa:
+		borraba código que Psych llama de forma dinámica desde Lua, y el compilador
+		no lo detecta como "usado"). Lo saco. Si querés, se puede probar con
+		"-dce std" en vez de "full" (más conservador), pero probá primero SIN esto. -->
+	<!-- <haxeflag name="-dce" value="full" /> -->
 
 	<!-- Optimización: menos pausas del recolector de basura en Android (release) -->
 	<haxedef name="HXCPP_GC_BIG_BLOCKS" unless="debug" />
